@@ -7,6 +7,7 @@ import sqlite3
 import tempfile
 import requests
 import pyautogui
+from mss import mss
 import tkinter as tk
 from PIL import Image
 from tkinter import ttk
@@ -123,34 +124,30 @@ def encode_image(image_bytes):
 # region Image Related
 def take_screenshot():
     screenshots = []
-    for m in get_monitors():
-        print(f"Capturing screen: {m.name} at resolution {m.width}x{m.height}")
-        screenshot = pyautogui.screenshot(region=(m.x, m.y, m.width, m.height))
-        screenshots.append(screenshot)
+    with mss() as sct:
+        for monitor_number, monitor in enumerate(sct.monitors[1:], start=1):  # Skip the first entry which is the entire screen
+            print(f"Capturing screen: Monitor {monitor_number} at resolution {monitor['width']}x{monitor['height']}")
+            sct_img = sct.grab(monitor)
+            screenshot = Image.frombytes('RGB', (sct_img.width, sct_img.height), sct_img.rgb)
+            screenshots.append(screenshot)
 
-    # Assuming we have at least two screenshots and we want to adjust the second one to match the first one's height
     if len(screenshots) >= 2:
         first_height = screenshots[0].size[1]
         second_screenshot = screenshots[1]
         second_width, second_height = second_screenshot.size
-        # Calculate the new width for the second screenshot to maintain its aspect ratio
         new_second_width = int(first_height * (second_width / second_height))
         resized_second_screenshot = second_screenshot.resize((new_second_width, first_height), Image.Resampling.LANCZOS)
-        
-        # Create a new blank image with a width that is the sum of both screenshots' widths and a height matching the first screenshot
+
         total_width = screenshots[0].size[0] + new_second_width
         stitched_image = Image.new('RGB', (total_width, first_height))
-        
-        # Paste the first screenshot and the resized second screenshot into the stitched image
+
         stitched_image.paste(screenshots[0], (0, 0))
         stitched_image.paste(resized_second_screenshot, (screenshots[0].size[0], 0))
-        
-        # Save or process the stitched image
+
         img_byte_arr = io.BytesIO()
         stitched_image.save(img_byte_arr, format='JPEG')
         return img_byte_arr.getvalue()
     else:
-        # Fallback or other handling if there's only one screenshot
         img_byte_arr = io.BytesIO()
         screenshots[0].save(img_byte_arr, format='JPEG')
         return img_byte_arr.getvalue()
@@ -266,15 +263,25 @@ def create_ui():
     global root, db_path, default_system_prompt, model_selection, quality_selection
 
     initialize_db(db_path) 
+    
+    # Define modern color scheme
+    background_color = '#ffffff'
+    accent_color = '#ccb3ff'
+    width = 350
+    height = 650
 
     root = tk.Tk()
+    root.config(bg=background_color)
     root.title("EYES")
-    root.geometry('600x400')
+    root.geometry(f'{width}x{height}')
+    # root.minsize(width, height)
+    # root.maxsize(width, height)
 
     # Inputs
-    tk.Label(root, text="Interval (seconds)").pack()
+    interval_label = tk.Label(root, text="Interval (seconds)")
+    interval_label.pack(pady=(10, 5))
     interval_entry = tk.Entry(root)
-    interval_entry.pack()
+    interval_entry.pack(pady=5)
     interval_entry.insert(0, str(interval))
 
     tk.Label(root, text="System Prompt").pack()
@@ -283,23 +290,56 @@ def create_ui():
     system_prompt_entry.insert(0, default_system_prompt)
     
     # Dropdowns
-    tk.Label(root, text="Select Quality:").pack()
+    quality_label = tk.Label(root, text="Select Quality:", bg=background_color)
+    quality_label.pack(pady=(10, 5))
     quality_list = ["25%", "50%", "75%"]
-    quality_selection = ttk.Combobox(root, values=quality_list)
-    quality_selection.pack()
+    quality_selection = ttk.Combobox(
+        root, 
+        values=quality_list
+    )
+    quality_selection.configure(background='lightgray', foreground='blue')
+    quality_selection.pack(pady=10, padx=5)
     quality_selection.set(quality_list[0])
     
-    tk.Label(root, text="Select Model:").pack()
+    model_label = tk.Label(root, text="Select Model:", bg=background_color)
+    model_label.pack(pady=(10, 5))
     model_list = ["GPT", "Moondream"]
-    model_selection = ttk.Combobox(root, values=model_list)
-    model_selection.pack()
+    model_selection = ttk.Combobox(
+        root, 
+        values=model_list
+    )
+    model_selection.configure(background='lightgray', foreground='blue')
+    model_selection.pack(pady=10, padx=5)
     model_selection.set(model_list[0])
 
     # Buttons
-    tk.Button(root, text="Start", command=lambda: start_screenshot_process()).pack()
-    tk.Button(root, text="Stop", command=lambda: stop_screenshot_process()).pack()
-    tk.Button(root, text="Update System Prompt", command=lambda: update_system_prompt(system_prompt_entry.get())).pack()
-    tk.Button(root, text="Update Interval", command=lambda: update_interval(interval_entry.get())).pack()
+    start_button = tk.Button(
+        root, 
+        text="Start",  
+        bg=accent_color, fg='white', borderwidth=0, highlightthickness=0, width=20, height=2,
+        command=lambda: start_screenshot_process()
+    ).pack(pady=10, padx=5, ipadx=10)
+    
+    stop_button = tk.Button(
+        root, 
+        text="Stop", 
+        bg=accent_color, fg='white', borderwidth=0, highlightthickness=0, width=20, height=2,
+        command=lambda: stop_screenshot_process()
+    ).pack(pady=10, padx=5, ipadx=10)
+    
+    update_system_prompt_button = tk.Button(
+        root, 
+        text="Update System Prompt", 
+        bg=accent_color, fg='white', borderwidth=0, highlightthickness=0, width=20, height=2,
+        command=lambda: update_system_prompt(system_prompt_entry.get())
+    ).pack(pady=10, padx=5, ipadx=10)
+    
+    update_interval_button = tk.Button(
+        root, 
+        text="Update Interval", 
+        bg=accent_color, fg='white', borderwidth=0, highlightthickness=0, width=20, height=2,
+        command=lambda: update_interval(interval_entry.get())
+    ).pack(pady=10, padx=5, ipadx=10)
 
     root.protocol("WM_DELETE_WINDOW", on_closing)
 
