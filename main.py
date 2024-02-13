@@ -132,17 +132,15 @@ def take_screenshot():
             screenshots.append(screenshot)
 
     if len(screenshots) >= 2:
-        first_height = screenshots[0].size[1]
+        first_screenshot = screenshots[0]
+        first_width, first_height = first_screenshot.size
+
         second_screenshot = screenshots[1]
-        second_width, second_height = second_screenshot.size
-        new_second_width = int(first_height * (second_width / second_height))
-        resized_second_screenshot = second_screenshot.resize((new_second_width, first_height), Image.Resampling.LANCZOS)
+        resized_second_screenshot = second_screenshot.resize((first_width, first_height), Image.Resampling.LANCZOS)
 
-        total_width = screenshots[0].size[0] + new_second_width
-        stitched_image = Image.new('RGB', (total_width, first_height))
-
-        stitched_image.paste(screenshots[0], (0, 0))
-        stitched_image.paste(resized_second_screenshot, (screenshots[0].size[0], 0))
+        stitched_image = Image.new('RGB', (first_width * 2, first_height))
+        stitched_image.paste(first_screenshot, (0, 0))
+        stitched_image.paste(resized_second_screenshot, (first_width, 0))
 
         img_byte_arr = io.BytesIO()
         stitched_image.save(img_byte_arr, format='JPEG')
@@ -151,6 +149,7 @@ def take_screenshot():
         img_byte_arr = io.BytesIO()
         screenshots[0].save(img_byte_arr, format='JPEG')
         return img_byte_arr.getvalue()
+
 def downscale_image(image_bytes, quality=90):
     """
     Downscale the image to a specified width and adjust quality.
