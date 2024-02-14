@@ -21,10 +21,30 @@ from screeninfo import get_monitors
 running = False
 interval = 5
 db_path = 'data/screenshots.db'
-model_selection = None
+config_file = 'config.txt'
+model_combobox = None
 default_openai_api_key = ''
 default_downscale_perc = 25
-default_system_prompt = "What's in this image?"
+default_system_prompt = "Explain this screenshot of the user's desktop in detail"
+# endregion
+
+# region Configuration
+def load_config():
+    global default_openai_api_key
+    try:
+        with open(config_file, 'r') as file:
+            default_openai_api_key = file.read().strip()
+    except FileNotFoundError:
+        print("Config file not found. Using default OpenAI API key.")
+    except Exception as e:
+        print("Error loading config file:", e)
+
+def save_config(api_key):
+    try:
+        with open(config_file, 'w') as file:
+            file.write(api_key)
+    except Exception as e:
+        print("Error saving config file:", e)
 # endregion
 
 # region Image LLM Related
@@ -33,15 +53,16 @@ def send_image_to_api(image_bytes):
 
     print(f'Sending Screenshot to API...')
     
-    if model_selection.get() == "GPT":
+    if model_combobox.get() == "GPT":
         response = call_open_ai_api(image_bytes)
-    elif model_selection.get() == "Moondream":
+    elif model_combobox.get() == "Moondream":
         response = call_moondream_api(image_bytes)
     else:
         print("Invalid model selection.")
         return None
     
     return response
+
 def call_open_ai_api(image_bytes):
     """Send the screenshot to the API and return the response."""
 
@@ -104,7 +125,6 @@ def call_moondream_api(image_bytes):
             default_system_prompt,  
             api_name="/answer_question"
         )
-        print("Moondream API Response:", result)
         return result
     except Exception as e:
         print("An error occurred while calling Moondream API:", str(e))
@@ -112,6 +132,7 @@ def call_moondream_api(image_bytes):
     finally:
         # Optionally delete the temp file if not needed anymore
         os.unlink(tmpfile_path)
+
 def encode_image(image_bytes):
     """Encode image bytes to base64."""
     return base64.b64encode(image_bytes).decode('utf-8')
@@ -203,11 +224,11 @@ def screenshot_loop():
         print(f'Running')
 
         timestamp = time.strftime('%Y-%m-%d %H:%M:%S')
-        image_bytes = take_screenshot()
-        downscaled_image = downscale_image(image_bytes, quality=default_downscale_perc)
-        response = send_image_to_api(downscaled_image)
+        original_image_bytes = take_screenshot()
+        response = send_image_to_api(original_image_bytes)
         response_text = str(response)
 
+        downscaled_image = downscale_image(original_image_bytes, quality=default_downscale_perc)
         save_to_db(timestamp, downscaled_image, response_text)
 
         time.sleep(interval)
@@ -237,6 +258,7 @@ def update_openai_api_key(new_openai_api_key):
     print(f'Updating OpenAI API Key')
     global default_openai_api_key
     default_openai_api_key = str(new_openai_api_key)
+    save_config(new_openai_api_key)
 def update_downscale_level(new_downscale_perc):
     print(f'Updating Downscale %')
     global default_downscale_perc
@@ -252,141 +274,121 @@ def on_closing():
 def create_ui():
     print(f'Building UI...\n')
 
-    global root, db_path, default_system_prompt, model_selection, compression_selection
+    global root, db_path, default_system_prompt, model_combobox, compression_selection
 
+    load_config()
     initialize_db(db_path) 
     
-    # Define modern color scheme
-    main_color_100 = '#141414'
+    # region Initial
+    main_color_100 = '#ffffff'
     main_color_500 = '#878787'
-    main_color_1000 = '#e6e6e6'
+    main_color_1000 = '#141414'
     accent_color_100 = '#ab36ff'
-    width = 350
-    height = 650
+    width = 400
+    height = 800
 
     root = tk.Tk()
     root.config(bg=main_color_100)
     root.title("EYES")
-    root.geometry(f'{width}x{height}')
-    # root.minsize(width, height)
-    # root.maxsize(width, height)
 
-    # Inputs
-    openai_api_key_label = tk.Label(
-        root, 
-        text="Enter OpenAI API Key",
-        bg=main_color_100,
-        fg=main_color_1000
-    )
-    openai_api_key_label.pack(pady=(10, 5))
-    openai_api_key_entry = tk.Entry(
-        root, 
-        width=20,
-        show="*",
-    )
-    openai_api_key_entry.pack(pady=5)
-    openai_api_key_entry.insert(0, str(default_openai_api_key))
-    openai_api_key_entry.bind('<FocusOut>', lambda event: update_openai_api_key(openai_api_key_entry.get()))
+    # Calculate screen width and height
+    screen_width = root.winfo_screenwidth()
+    screen_height = root.winfo_screenheight()
 
-    interval_label = tk.Label(
-        root, 
-        text="Interval (seconds)",
-        bg=main_color_100,
-        fg=main_color_1000
-    )
-    interval_label.pack(pady=(10, 5))
-    interval_entry = tk.Entry(
-        root, 
-        width=20,
-    )
-    interval_entry.pack(pady=5)
+    # Calculate x and y position for root window
+    x = (screen_width / 2) - (width / 2)
+    y = (screen_height / 2) - (height / 2)
+
+    root.geometry(f'{width}x{height}+{int(x)}+{int(y)}')
+
+    title_label = tk.Label(root, text="EYES", bg=main_color_100, fg=main_color_1000, font=('Arial', 20, 'bold'))
+    title_label.pack(pady=(10, 5))
+    # endregion
+
+    # region Config
+    frame_config = tk.Frame(root, bg=main_color_100)
+    frame_config.pack(pady=(10, 5))
+    config_label = tk.Label(frame_config, text="Config", bg=main_color_100, fg=main_color_1000, font=('Arial', 16, 'bold'))
+    config_label.pack(pady=(5, 10))
+    # Interval
+    label_interval = tk.Label(frame_config, text="Interval", bg=main_color_100, fg=main_color_1000)
+    label_interval.pack()
+    interval_entry = tk.Entry(frame_config, width=30)
+    interval_entry.pack()
     interval_entry.insert(0, str(interval))
     interval_entry.bind('<FocusOut>', lambda event: update_interval(interval_entry.get()))
+    # endregion
 
-    system_prompt_label = tk.Label(
-        root, 
-        text="System Prompt",
-        bg=main_color_100,
-        fg=main_color_1000
-    )
-    system_prompt_label.pack(pady=(10, 5))
-    system_prompt_entry = tk.Entry(
-        root, 
-        width=20,
-    )
-    system_prompt_entry.pack()
-    system_prompt_entry.insert(0, default_system_prompt)
-    system_prompt_entry.bind('<FocusOut>', lambda event: update_system_prompt(system_prompt_entry.get()))
-
-    # Dropdowns
-    image_quality_label = tk.Label(
-        root, 
-        text="Select Quality:", 
-        bg=main_color_100,
-        fg=main_color_1000
-    )
-    image_quality_label.pack(pady=(10, 5))
+    # region Image Options
+    frame_image = tk.Frame(root, bg=main_color_100)
+    frame_image.pack(pady=(10, 5))
+    image_options_label = tk.Label(frame_image, text="Image Options", bg=main_color_100, fg=main_color_1000, font=('Arial', 16, 'bold'))
+    image_options_label.pack(pady=(10, 5))
+    # API Image Quality
+    label_api_image_quality = tk.Label(frame_image, text="API Image Quality", bg=main_color_100, fg=main_color_1000)
+    label_api_image_quality.pack()
     image_quality_level_list = ["auto", "low", "high"]
-    image_quality_selection = ttk.Combobox(
-        root, 
-        values=image_quality_level_list, 
-        width=20
-    )
-    image_quality_selection.configure(background='lightgray', foreground='blue')
-    image_quality_selection.pack(pady=10, padx=5)
-    image_quality_selection.set(image_quality_level_list[1])
+    quality_combobox = ttk.Combobox(frame_image, values=image_quality_level_list, width=30)
+    quality_combobox.set(image_quality_level_list[1])
+    quality_combobox.pack()
+    # Saved Image Compression
+    label_saved_image_compression = tk.Label(frame_image, text="Saved Image Compression", bg=main_color_100, fg=main_color_1000)
+    label_saved_image_compression.pack()
+    compression_level_list = [5, 15, 25, 50, 75]
+    compression_combobox = ttk.Combobox(frame_image, values=compression_level_list, width=30)
+    compression_combobox.set(compression_level_list[2])
+    compression_combobox.pack()
+    # endregion
 
-    compression_label = tk.Label(
-        root, 
-        text="Select Quality %:", 
-        bg=main_color_100,
-        fg=main_color_1000
-    )
-    compression_label.pack(pady=(10, 5))
-    compression_level_list = [25, 50, 75]
-    compression_selection = ttk.Combobox(
-        root, 
-        values=compression_level_list, 
-        width=20
-    )
-    compression_selection.configure(background='lightgray', foreground='blue')
-    compression_selection.pack(pady=10, padx=5)
-    compression_selection.set(compression_level_list[0])
-    
-    model_label = tk.Label(
-        root, 
-        text="Select Model:", 
-        bg=main_color_100,
-        fg=main_color_1000
-    )
-    model_label.pack(pady=(10, 5))
+    # region Model Options
+    frame_model = tk.Frame(root, bg=main_color_100)
+    frame_model.pack(pady=(10, 5))
+    model_options_label = tk.Label(frame_model, text="Model Options", bg=main_color_100, fg=main_color_1000, font=('Arial', 16, 'bold'))
+    model_options_label.pack(pady=(10, 5))
+    # API Key
+    label_api_key = tk.Label(frame_model, text="API Key", bg=main_color_100, fg=main_color_1000)
+    label_api_key.pack()
+    openai_api_key_entry = tk.Entry(frame_model, width=30, show="*")
+    openai_api_key_entry.pack()
+    openai_api_key_entry.insert(0, str(default_openai_api_key))
+    openai_api_key_entry.bind('<FocusOut>', lambda event: update_openai_api_key(openai_api_key_entry.get()))
+    # Model
+    label_model = tk.Label(frame_model, text="Model", bg=main_color_100, fg=main_color_1000)
+    label_model.pack()
     model_list = ["GPT", "Moondream"]
-    model_selection = ttk.Combobox(
-        root, 
-        values=model_list,
-        width=20
-    )
-    model_selection.configure(background='lightgray', foreground='blue')
-    model_selection.pack(pady=10, padx=5)
-    model_selection.set(model_list[0])
-
-    # Buttons
+    model_combobox = ttk.Combobox(frame_model, values=model_list, width=30)
+    model_combobox.configure(background=main_color_100, foreground=main_color_1000)
+    model_combobox.set(model_list[0])
+    model_combobox.pack()
+    # System Prompt
+    label_system_prompt = tk.Label(frame_model, text="System Prompt", bg=main_color_100, fg=main_color_1000)
+    label_system_prompt.pack()
+    system_prompt_entry = tk.Text(frame_model, width=30, height=3)
+    system_prompt_entry.pack()
+    system_prompt_entry.insert(1.0, default_system_prompt)
+    system_prompt_entry.bind('<FocusOut>', lambda event: update_system_prompt(system_prompt_entry.get()))
+    # endregion
+    
+    # region Buttons
+    frame_button = tk.Frame(root, bg=main_color_100)
+    frame_button.pack(pady=(10, 5))
     start_button = tk.Button(
-        root, 
+        frame_button, 
         text="Start",  
-        bg=accent_color_100, fg=main_color_1000, borderwidth=0, highlightthickness=0, width=20, height=2,
+        bg=accent_color_100, fg=main_color_1000, borderwidth=0, highlightthickness=0, width=30, height=2,
         command=lambda: start_screenshot_process()
     )
-    start_button.pack(pady=10, padx=5)
-    
+    start_button.grid(row=0, column=0, padx=5, pady=10)
     stop_button = tk.Button(
-        root, 
+        frame_button, 
         text="Stop", 
-        bg=accent_color_100, fg=main_color_1000, borderwidth=0, highlightthickness=0, width=20, height=2,
+        bg=accent_color_100, fg=main_color_1000, borderwidth=0, highlightthickness=0, width=30, height=2,
         command=lambda: stop_screenshot_process()
     )
-    start_button.pack(pady=10, padx=5)
-
+    stop_button.grid(row=1, column=0, padx=5, pady=10)
+    # endregion
+    # endregion
+    
     root.protocol("WM_DELETE_WINDOW", on_closing)
 
     root.mainloop()
