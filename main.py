@@ -12,22 +12,18 @@ import tkinter as tk
 from PIL import Image
 from tkinter import ttk
 from threading import Thread
-from dotenv import load_dotenv
 from gradio_client import Client
 from screeninfo import get_monitors
 # endregion
 
 # region Setup
-# Env Vars
-load_dotenv()
-api_key = os.getenv('OPENAI_API_KEY')
-
 # Global variables
 running = False
-interval = 2
+interval = 5
 db_path = 'data/screenshots.db'
 model_selection = None
-quality_selection = None
+default_openai_api_key = ''
+default_downscale_perc = 25
 default_system_prompt = "What's in this image?"
 # endregion
 
@@ -56,7 +52,7 @@ def call_open_ai_api(image_bytes):
     base64_image = encode_image(image_bytes)
     headers = {
         "Content-Type": "application/json",
-        "Authorization": f"Bearer {api_key}"
+        "Authorization": f"Bearer {default_openai_api_key}"
     }
     payload = {
         "model": "gpt-4-vision-preview",
@@ -201,25 +197,14 @@ def save_to_db(timestamp, image, response):
 def screenshot_loop():
     print(f'Started Screenshot Loop...')
 
-    global running, interval
+    global running, interval, default_downscale_perc
 
     while running:        
         print(f'Running')
 
-        # Convert the quality selection to an appropriate JPEG quality integer.
-        quality_factor = str(quality_selection.get())
-        if quality_factor == '75%':
-            jpeg_quality = 75
-        elif quality_factor == '50%':
-            jpeg_quality = 50
-        elif quality_factor == '25%':
-            jpeg_quality = 25
-        else:
-            jpeg_quality = 50
-
         timestamp = time.strftime('%Y-%m-%d %H:%M:%S')
         image_bytes = take_screenshot()
-        downscaled_image = downscale_image(image_bytes, quality=jpeg_quality)
+        downscaled_image = downscale_image(image_bytes, quality=default_downscale_perc)
         response = send_image_to_api(downscaled_image)
         response_text = str(response)
 
@@ -248,6 +233,14 @@ def update_system_prompt(new_system_prompt):
     print(f'Updating Default System Prompt')
     global default_system_prompt
     default_system_prompt = str(new_system_prompt)
+def update_openai_api_key(new_openai_api_key):
+    print(f'Updating OpenAI API Key')
+    global default_openai_api_key
+    default_openai_api_key = str(new_openai_api_key)
+def update_downscale_level(new_downscale_perc):
+    print(f'Updating Downscale %')
+    global default_downscale_perc
+    default_downscale_perc = int(new_downscale_perc)
 
 def on_closing():
     print("Closing application...")
@@ -259,53 +252,119 @@ def on_closing():
 def create_ui():
     print(f'Building UI...\n')
 
-    global root, db_path, default_system_prompt, model_selection, quality_selection
+    global root, db_path, default_system_prompt, model_selection, compression_selection
 
     initialize_db(db_path) 
     
     # Define modern color scheme
-    background_color = '#ffffff'
-    accent_color = '#ccb3ff'
+    main_color_100 = '#141414'
+    main_color_500 = '#878787'
+    main_color_1000 = '#e6e6e6'
+    accent_color_100 = '#ab36ff'
     width = 350
     height = 650
 
     root = tk.Tk()
-    root.config(bg=background_color)
+    root.config(bg=main_color_100)
     root.title("EYES")
     root.geometry(f'{width}x{height}')
     # root.minsize(width, height)
     # root.maxsize(width, height)
 
     # Inputs
-    interval_label = tk.Label(root, text="Interval (seconds)")
+    openai_api_key_label = tk.Label(
+        root, 
+        text="Enter OpenAI API Key",
+        bg=main_color_100,
+        fg=main_color_1000
+    )
+    openai_api_key_label.pack(pady=(10, 5))
+    openai_api_key_entry = tk.Entry(
+        root, 
+        width=20,
+        show="*",
+    )
+    openai_api_key_entry.pack(pady=5)
+    openai_api_key_entry.insert(0, str(default_openai_api_key))
+    openai_api_key_entry.bind('<FocusOut>', lambda event: update_openai_api_key(openai_api_key_entry.get()))
+
+    interval_label = tk.Label(
+        root, 
+        text="Interval (seconds)",
+        bg=main_color_100,
+        fg=main_color_1000
+    )
     interval_label.pack(pady=(10, 5))
-    interval_entry = tk.Entry(root)
+    interval_entry = tk.Entry(
+        root, 
+        width=20,
+    )
     interval_entry.pack(pady=5)
     interval_entry.insert(0, str(interval))
+    interval_entry.bind('<FocusOut>', lambda event: update_interval(interval_entry.get()))
 
-    tk.Label(root, text="System Prompt").pack()
-    system_prompt_entry = tk.Entry(root)
+    system_prompt_label = tk.Label(
+        root, 
+        text="System Prompt",
+        bg=main_color_100,
+        fg=main_color_1000
+    )
+    system_prompt_label.pack(pady=(10, 5))
+    system_prompt_entry = tk.Entry(
+        root, 
+        width=20,
+    )
     system_prompt_entry.pack()
     system_prompt_entry.insert(0, default_system_prompt)
-    
+    system_prompt_entry.bind('<FocusOut>', lambda event: update_system_prompt(system_prompt_entry.get()))
+
     # Dropdowns
-    quality_label = tk.Label(root, text="Select Quality:", bg=background_color)
-    quality_label.pack(pady=(10, 5))
-    quality_list = ["25%", "50%", "75%"]
-    quality_selection = ttk.Combobox(
+    image_quality_label = tk.Label(
         root, 
-        values=quality_list
+        text="Select Quality:", 
+        bg=main_color_100,
+        fg=main_color_1000
     )
-    quality_selection.configure(background='lightgray', foreground='blue')
-    quality_selection.pack(pady=10, padx=5)
-    quality_selection.set(quality_list[0])
+    image_quality_label.pack(pady=(10, 5))
+    image_quality_level_list = ["auto", "low", "high"]
+    image_quality_selection = ttk.Combobox(
+        root, 
+        values=image_quality_level_list, 
+        width=20
+    )
+    image_quality_selection.configure(background='lightgray', foreground='blue')
+    image_quality_selection.pack(pady=10, padx=5)
+    image_quality_selection.set(image_quality_level_list[1])
+
+    compression_label = tk.Label(
+        root, 
+        text="Select Quality %:", 
+        bg=main_color_100,
+        fg=main_color_1000
+    )
+    compression_label.pack(pady=(10, 5))
+    compression_level_list = [25, 50, 75]
+    compression_selection = ttk.Combobox(
+        root, 
+        values=compression_level_list, 
+        width=20
+    )
+    compression_selection.configure(background='lightgray', foreground='blue')
+    compression_selection.pack(pady=10, padx=5)
+    compression_selection.set(compression_level_list[0])
     
-    model_label = tk.Label(root, text="Select Model:", bg=background_color)
+    model_label = tk.Label(
+        root, 
+        text="Select Model:", 
+        bg=main_color_100,
+        fg=main_color_1000
+    )
     model_label.pack(pady=(10, 5))
     model_list = ["GPT", "Moondream"]
     model_selection = ttk.Combobox(
         root, 
-        values=model_list
+        values=model_list,
+        width=20
     )
     model_selection.configure(background='lightgray', foreground='blue')
     model_selection.pack(pady=10, padx=5)
@@ -315,30 +374,18 @@ def create_ui():
     start_button = tk.Button(
         root, 
         text="Start",  
-        bg=accent_color, fg='white', borderwidth=0, highlightthickness=0, width=20, height=2,
+        bg=accent_color_100, fg=main_color_1000, borderwidth=0, highlightthickness=0, width=20, height=2,
         command=lambda: start_screenshot_process()
-    ).pack(pady=10, padx=5, ipadx=10)
+    )
+    start_button.pack(pady=10, padx=5)
     
     stop_button = tk.Button(
         root, 
         text="Stop", 
-        bg=accent_color, fg='white', borderwidth=0, highlightthickness=0, width=20, height=2,
+        bg=accent_color_100, fg=main_color_1000, borderwidth=0, highlightthickness=0, width=20, height=2,
         command=lambda: stop_screenshot_process()
-    ).pack(pady=10, padx=5, ipadx=10)
-    
-    update_system_prompt_button = tk.Button(
-        root, 
-        text="Update System Prompt", 
-        bg=accent_color, fg='white', borderwidth=0, highlightthickness=0, width=20, height=2,
-        command=lambda: update_system_prompt(system_prompt_entry.get())
-    ).pack(pady=10, padx=5, ipadx=10)
-    
-    update_interval_button = tk.Button(
-        root, 
-        text="Update Interval", 
-        bg=accent_color, fg='white', borderwidth=0, highlightthickness=0, width=20, height=2,
-        command=lambda: update_interval(interval_entry.get())
-    ).pack(pady=10, padx=5, ipadx=10)
+    )
+    start_button.pack(pady=10, padx=5)
 
     root.protocol("WM_DELETE_WINDOW", on_closing)
 
