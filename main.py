@@ -1,6 +1,8 @@
 # region Packages
 import os
 import io
+import cv2
+import json
 import time
 import base64
 import sqlite3
@@ -18,33 +20,96 @@ from screeninfo import get_monitors
 
 # region Setup
 # Global variables
+global running, screenshot_db_path, photo_db_path, config_file, default_model, default_interval, default_openai_api_key, default_downscale_perc, default_quality_val, default_system_prompt
+
 running = False
-interval = 5
-image_db_path = 'data/screenshots.db'
-config_file = 'config.txt'
-model_combobox = None
+screenshot_db_path = 'data/sql/screenshots.db'
+photo_db_path = 'data/sql/screenshots.db'
+config_file = 'config.json'
+
+default_model = 'GPT'
+default_interval = 5
 default_openai_api_key = ''
 default_downscale_perc = 25
+default_quality_val = 'low'
 default_system_prompt = "Explain this screenshot of the user's desktop in detail"
 # endregion
 
 # region Configuration
 def load_config():
-    global default_openai_api_key
+    global config_file, default_model, default_interval, default_openai_api_key, default_downscale_perc, default_quality_val, default_system_prompt
     try:
         with open(config_file, 'r') as file:
-            default_openai_api_key = file.read().strip()
+            config_data = json.load(file)
+            print(f"Config file : {config_data}")
+            default_model = config_data.get('default_model', default_model)
+            default_interval = config_data.get('default_interval', default_interval)
+            default_openai_api_key = config_data.get('default_openai_api_key', default_openai_api_key)
+            default_downscale_perc = config_data.get('default_downscale_perc', default_downscale_perc)
+            default_quality_val = config_data.get('default_quality_val', default_quality_val)
+            default_system_prompt = config_data.get('default_system_prompt', default_system_prompt)
     except FileNotFoundError:
-        print("Config file not found. Using default OpenAI API key.")
+        print("Config file not found. Creating empty and using defaults.")
+        with open(config_file, 'w') as file:
+            json.dump({
+                'default_model': default_model,
+                'default_interval': default_interval,
+                'default_openai_api_key': default_openai_api_key,
+                'default_downscale_perc': default_downscale_perc,
+                'default_quality_val': default_quality_val,
+                'default_system_prompt': default_system_prompt
+            }, file)
+            pass
     except Exception as e:
         print("Error loading config file:", e)
 
-def save_config(api_key):
+def save_config(key, new_val):
     try:
-        with open(config_file, 'w') as file:
-            file.write(api_key)
+        with open(config_file, 'r') as file:
+            config_data = json.load(file)
+        config_data[key] = new_val
+        with open(config_file, 'w') as outfile:
+            json.dump(config_data, outfile)
     except Exception as e:
         print("Error saving config file:", e)
+# endregion
+
+# region DB Related
+def save_to_screenshot_db(timestamp, image_bytes, image_path, response):
+    print(f'Saving to Screenshots DB...')
+
+    global screenshot_db_path
+
+    conn = sqlite3.connect(screenshot_db_path)
+    c = conn.cursor()
+    
+    c.execute('''CREATE TABLE IF NOT EXISTS screenshots
+                 (timestamp TEXT, image BLOB, image_path TEXT, api_response TEXT)''')
+    conn.commit()
+    
+    c.execute("INSERT INTO screenshots VALUES (?, ?, ?, ?)", (timestamp, image_bytes, image_path, response))
+    conn.commit()
+    conn.close()
+
+    print(f'Saved!\n')
+
+def save_to_photo_db(timestamp, image_bytes, image_path, response):
+    print(f'Saving to Photos DB...')
+
+    global photo_db_path
+
+    conn = sqlite3.connect(photo_db_path)
+    c = conn.cursor()
+    
+    c.execute('''CREATE TABLE IF NOT EXISTS photos
+                 (timestamp TEXT, image BLOB, image_path TEXT, api_response TEXT)''')
+    conn.commit()
+    
+    c.execute("INSERT INTO photos VALUES (?, ?, ?, ?)", (timestamp, image_bytes, image_path, response))
+    conn.commit()
+    conn.close()
+
+    print(f'Saved!\n')
 # endregion
 
 # region Image LLM Related
@@ -53,9 +118,9 @@ def send_image_to_api(image_bytes):
 
     print(f'Sending Screenshot to API...')
     
-    if model_combobox.get() == "GPT":
+    if default_model == "GPT":
         response = call_open_ai_api(image_bytes)
-    elif model_combobox.get() == "Moondream":
+    elif default_model == "Moondream":
         response = call_moondream_api(image_bytes)
     else:
         print("Invalid model selection.")
@@ -162,6 +227,24 @@ def take_screenshot():
     screenshot.save(img_byte_arr, format='JPEG')
     return img_byte_arr.getvalue()
 
+# FIXME: Improve this to keep camera on all the time and just pull image byte data when function called
+def take_photo():
+    # Capture the webcam feed
+    cap = cv2.VideoCapture(0)  # Use 0 for the primary webcam
+    ret, frame = cap.read()
+
+    # Save the image to a byte array
+    img_byte_arr = io.BytesIO()
+    cv2.imwrite("temp.jpg", frame)
+    with open("temp.jpg", "rb") as f:
+        img_byte_arr.write(f.read())
+
+    # Clean up
+    cv2.destroyAllWindows()
+    cap.release()
+
+    return img_byte_arr.getvalue()
+
 def downscale_image(image_bytes, quality=90):
     """
     Downscale the image to a specified width and adjust quality.
@@ -183,81 +266,127 @@ def downscale_image(image_bytes, quality=90):
     return img_byte_arr.getvalue()
 # endregion
 
-# region DB Related
-def initialize_db(db_file):
-    print(f'Initializing DB...')
-
-    conn = sqlite3.connect(db_file)
-    c = conn.cursor()
-    c.execute('''CREATE TABLE IF NOT EXISTS screenshots
-                 (timestamp TEXT, image BLOB, api_response TEXT)''')
-    conn.commit()
-    conn.close()
-
-    print(f'Initialized\n')
-def save_to_db(timestamp, image, response):
-    print(f'Saving to DB...')
-
-    global image_db_path
-
-    conn = sqlite3.connect(image_db_path)
-    c = conn.cursor()
-    c.execute("INSERT INTO screenshots VALUES (?, ?, ?)", (timestamp, image, response))
-    conn.commit()
-    conn.close()
-
-    print(f'Saved!\n')
-# endregion
-
 # region Primary Loop Related
 def screenshot_loop():
     print(f'Started Screenshot Loop...')
 
-    global running, interval, default_downscale_perc
+    global running, default_interval, default_downscale_perc
+    
+    folder_path = 'data/screenshots/'
+    if not os.path.exists(folder_path):
+        os.makedirs(folder_path)
+    if os.path.exists(folder_path):
+        for filename in os.listdir(folder_path):
+            file_path = os.path.join(folder_path, filename)
+            os.unlink(file_path)
 
     while running:        
-        print(f'Running')
+        print(f'Running Screenshot Loop')
 
+        # Pull data
         timestamp = time.strftime('%Y-%m-%d %H:%M:%S')
+        filename = time.strftime('%Y-%m-%d-%H-%M-%S')
         original_image_bytes = take_screenshot()
-        response = send_image_to_api(original_image_bytes)
-        response_text = str(response)
+        
+        # Save the original image to the specified path
+        image_filename = f"{filename}.jpeg"
+        image_path = os.path.join(folder_path, image_filename)
+        with open(image_path, 'wb') as f:
+            f.write(original_image_bytes)
+
+        # Save data to SQL
+        downscaled_image_bytes = downscale_image(original_image_bytes, quality=default_downscale_perc)
+        save_to_screenshot_db(timestamp, downscaled_image_bytes, image_filename, '')
+
+        if not running:
+            break
+        time.sleep(default_interval)
+
+def photo_loop():
+    print(f'Started Photo Loop...')
+
+    global running, default_interval, default_downscale_perc
+
+    folder_path = 'data/photos/'
+    if not os.path.exists(folder_path):
+        os.makedirs(folder_path)
+    if os.path.exists(folder_path):
+        for filename in os.listdir(folder_path):
+            file_path = os.path.join(folder_path, filename)
+            os.unlink(file_path)
+
+    while running:        
+        print(f'Running Photo Loop')
+
+        # Pull data
+        timestamp = time.strftime('%Y-%m-%d %H:%M:%S')
+        filename = time.strftime('%Y-%m-%d-%H-%M-%S')
+        original_image_bytes = take_photo()
+        
+        # Save the original image to the specified path
+        image_filename = f"{filename}.jpeg"
+        image_path = os.path.join(folder_path, image_filename)
+        with open(image_path, 'wb') as f:
+            f.write(original_image_bytes)
 
         downscaled_image = downscale_image(original_image_bytes, quality=default_downscale_perc)
-        save_to_db(timestamp, downscaled_image, response_text)
+        save_to_photo_db(timestamp, downscaled_image, image_filename, '')
 
-        time.sleep(interval)
+        if not running:
+            break
+        time.sleep(default_interval)
 
 def start_screenshot_process():
     print(f'Started Screenshot Process')
+    
     global running
+    
     running = True
-    thread = Thread(target=screenshot_loop)
-    thread.start()
+
+    screenshot_thread = Thread(target=screenshot_loop)
+    screenshot_thread.start()
+    photo_thread = Thread(target=photo_loop)
+    photo_thread.start()
+
 def stop_screenshot_process():
     print(f'Stopped Screenshot Process')
+    
     global running
+    
     running = False
 # endregion
 
 # region UI Related
 def update_interval(new_interval):
-    print(f'Updating Interval')
-    global interval
-    interval = int(new_interval)
+    global default_interval
+    print(f'Updating Interval from {default_interval} to {new_interval}')
+    default_interval = int(new_interval)
+    save_config('default_interval', default_interval)
 def update_system_prompt(new_system_prompt):
-    print(f'Updating Default System Prompt')
     global default_system_prompt
+    print(f'Updating Default System Prompt from {default_system_prompt} to {new_system_prompt}')
     default_system_prompt = str(new_system_prompt)
+    save_config('default_system_prompt', default_system_prompt)
 def update_openai_api_key(new_openai_api_key):
-    print(f'Updating OpenAI API Key')
     global default_openai_api_key
+    print(f'Updating OpenAI API Key from {default_openai_api_key} to {new_openai_api_key}')
     default_openai_api_key = str(new_openai_api_key)
-    save_config(new_openai_api_key)
-def update_downscale_level(new_downscale_perc):
-    print(f'Updating Downscale %')
+    save_config('new_openai_api_key', new_openai_api_key)
+def update_quality_level(new_quality_val):
+    global default_quality_val
+    print(f'Updating Quality % from {default_quality_val} to {new_quality_val}')
+    default_quality_val = str(new_quality_val)
+    save_config('default_quality_val', default_quality_val)
+def update_compression_level(new_downscale_perc):
     global default_downscale_perc
+    print(f'Updating Compression % from {default_downscale_perc} to {new_downscale_perc}')
     default_downscale_perc = int(new_downscale_perc)
+    save_config('default_downscale_perc', default_downscale_perc)
+def update_model(new_model):
+    global default_model
+    print(f'Updating Model from {default_model} to {new_model}')
+    default_model = str(new_model)
+    save_config('default_model', default_model)
 
 def on_closing():
     print("Closing application...")
@@ -269,10 +398,7 @@ def on_closing():
 def create_ui():
     print(f'Building UI...\n')
 
-    global root, image_db_path, default_system_prompt, model_combobox, compression_selection
-
-    load_config()
-    initialize_db(image_db_path) 
+    global root, default_model, default_interval, default_openai_api_key, default_downscale_perc, default_quality_val, default_system_prompt
     
     # region Initial
     main_color_100 = '#ffffff'
@@ -311,7 +437,7 @@ def create_ui():
     label_interval.pack()
     interval_entry = tk.Entry(frame_config, width=30)
     interval_entry.pack()
-    interval_entry.insert(0, str(interval))
+    interval_entry.insert(0, str(default_interval))
     interval_entry.bind('<FocusOut>', lambda event: update_interval(interval_entry.get()))
     # endregion
 
@@ -325,15 +451,17 @@ def create_ui():
     label_api_image_quality.pack()
     image_quality_level_list = ["auto", "low", "high"]
     quality_combobox = ttk.Combobox(frame_image, values=image_quality_level_list, width=30)
-    quality_combobox.set(image_quality_level_list[1])
+    quality_combobox.set(default_quality_val)
     quality_combobox.pack()
+    quality_combobox.bind("<<ComboboxSelected>>", lambda event: update_quality_level(quality_combobox.get()))
     # Saved Image Compression
     label_saved_image_compression = tk.Label(frame_image, text="Saved Image Compression", bg=main_color_100, fg=main_color_1000)
     label_saved_image_compression.pack()
     compression_level_list = [5, 15, 25, 50, 75]
     compression_combobox = ttk.Combobox(frame_image, values=compression_level_list, width=30)
-    compression_combobox.set(compression_level_list[2])
+    compression_combobox.set(default_downscale_perc)
     compression_combobox.pack()
+    compression_combobox.bind("<<ComboboxSelected>>", lambda event: update_compression_level(compression_combobox.get()))
     # endregion
 
     # region Model Options
@@ -354,8 +482,9 @@ def create_ui():
     model_list = ["GPT", "Moondream"]
     model_combobox = ttk.Combobox(frame_model, values=model_list, width=30)
     model_combobox.configure(background=main_color_100, foreground=main_color_1000)
-    model_combobox.set(model_list[0])
+    model_combobox.set(default_model)
     model_combobox.pack()
+    model_combobox.bind('<FocusOut>', lambda event: update_model(model_combobox.get()))
     # System Prompt
     label_system_prompt = tk.Label(frame_model, text="System Prompt", bg=main_color_100, fg=main_color_1000)
     label_system_prompt.pack()
@@ -383,11 +512,11 @@ def create_ui():
     )
     stop_button.grid(row=1, column=0, padx=5, pady=10)
     # endregion
-    # endregion
 
     root.mainloop()
 # endregion
 
 if __name__ == "__main__":
     print(f'Starting EYES...\n')
+    load_config()
     create_ui()
