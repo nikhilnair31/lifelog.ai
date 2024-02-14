@@ -20,7 +20,7 @@ from screeninfo import get_monitors
 
 # region Setup
 # Global variables
-global running, screenshot_db_path, photo_db_path, config_file, default_model, default_interval, default_openai_api_key, default_downscale_perc, default_quality_val, default_system_prompt
+global running, cap, screenshot_db_path, photo_db_path, config_file, default_model, default_interval, default_openai_api_key, default_downscale_perc, default_quality_val, default_system_prompt
 
 running = False
 screenshot_db_path = 'data/sql/screenshots.db'
@@ -33,6 +33,8 @@ default_openai_api_key = ''
 default_downscale_perc = 25
 default_quality_val = 'low'
 default_system_prompt = "Explain this screenshot of the user's desktop in detail"
+
+cap = None
 # endregion
 
 # region Configuration
@@ -229,21 +231,17 @@ def take_screenshot():
 
 # FIXME: Improve this to keep camera on all the time and just pull image byte data when function called
 def take_photo():
-    # Capture the webcam feed
-    cap = cv2.VideoCapture(0)  # Use 0 for the primary webcam
+    global cap
+
     ret, frame = cap.read()
 
-    # Save the image to a byte array
-    img_byte_arr = io.BytesIO()
-    cv2.imwrite("temp.jpg", frame)
-    with open("temp.jpg", "rb") as f:
-        img_byte_arr.write(f.read())
+    # Convert the frame to JPEG format
+    _, img_encoded = cv2.imencode('.jpeg', frame)
 
-    # Clean up
-    cv2.destroyAllWindows()
-    cap.release()
+    # Convert the encoded image array to bytes
+    img_byte_arr = img_encoded.tobytes()
 
-    return img_byte_arr.getvalue()
+    return img_byte_arr
 
 def downscale_image(image_bytes, quality=90):
     """
@@ -275,10 +273,6 @@ def screenshot_loop():
     folder_path = 'data/screenshots/'
     if not os.path.exists(folder_path):
         os.makedirs(folder_path)
-    if os.path.exists(folder_path):
-        for filename in os.listdir(folder_path):
-            file_path = os.path.join(folder_path, filename)
-            os.unlink(file_path)
 
     while running:        
         print(f'Running Screenshot Loop')
@@ -310,10 +304,6 @@ def photo_loop():
     folder_path = 'data/photos/'
     if not os.path.exists(folder_path):
         os.makedirs(folder_path)
-    if os.path.exists(folder_path):
-        for filename in os.listdir(folder_path):
-            file_path = os.path.join(folder_path, filename)
-            os.unlink(file_path)
 
     while running:        
         print(f'Running Photo Loop')
@@ -336,24 +326,28 @@ def photo_loop():
             break
         time.sleep(default_interval)
 
-def start_screenshot_process():
-    print(f'Started Screenshot Process')
+def start_primary_process():
+    print(f'Started Primary Loop')
     
-    global running
+    global running, cap
     
     running = True
+    
+    cap = cv2.VideoCapture(0)
 
     screenshot_thread = Thread(target=screenshot_loop)
     screenshot_thread.start()
     photo_thread = Thread(target=photo_loop)
     photo_thread.start()
 
-def stop_screenshot_process():
-    print(f'Stopped Screenshot Process')
+def stop_primary_process():
+    print(f'Stopped Primary Loop')
     
-    global running
+    global running, cap
     
     running = False
+    cv2.destroyAllWindows()
+    cap.release()
 # endregion
 
 # region UI Related
@@ -392,7 +386,7 @@ def on_closing():
     print("Closing application...")
     global running
     if running:
-        stop_screenshot_process()
+        stop_primary_process()
     root.destroy()
 
 def create_ui():
@@ -501,14 +495,14 @@ def create_ui():
         frame_button, 
         text="Start",  
         bg=accent_color_100, fg=main_color_1000, borderwidth=0, highlightthickness=0, width=30, height=2,
-        command=lambda: start_screenshot_process()
+        command=lambda: start_primary_process()
     )
     start_button.grid(row=0, column=0, padx=5, pady=10)
     stop_button = tk.Button(
         frame_button, 
         text="Stop", 
         bg=accent_color_100, fg=main_color_1000, borderwidth=0, highlightthickness=0, width=30, height=2,
-        command=lambda: stop_screenshot_process()
+        command=lambda: stop_primary_process()
     )
     stop_button.grid(row=1, column=0, padx=5, pady=10)
     # endregion
