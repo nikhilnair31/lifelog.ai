@@ -13,6 +13,7 @@ from mss import mss
 import tkinter as tk
 from PIL import Image
 from tkinter import ttk
+from queue import Queue
 from threading import Thread
 from gradio_client import Client
 from screeninfo import get_monitors
@@ -20,11 +21,16 @@ from screeninfo import get_monitors
 
 # region Setup
 # Global variables
-global running, cap, screenshot_db_path, photo_db_path, config_file, default_model, default_interval, default_openai_api_key, default_downscale_perc, default_quality_val, default_system_prompt
+global running, cap, photos_folder_path, screenshots_folder_path, sql_folder_path, db_path, config_file, default_model, default_interval, default_openai_api_key, default_downscale_perc, default_quality_val, default_system_prompt
 
+NUM_THREADS = 2
 running = False
-screenshot_db_path = 'data/sql/screenshots.db'
-photo_db_path = 'data/sql/screenshots.db'
+
+photos_folder_path = 'data/photos/'
+screenshots_folder_path = 'data/screenshots/'
+sql_folder_path = 'data/sql/'
+
+db_path = 'data/sql/data.db'
 config_file = 'config.json'
 
 default_model = 'GPT'
@@ -43,7 +49,7 @@ def load_config():
     try:
         with open(config_file, 'r') as file:
             config_data = json.load(file)
-            print(f"Config file : {config_data}")
+            print(f"Config file : {config_data}\n")
             default_model = config_data.get('default_model', default_model)
             default_interval = config_data.get('default_interval', default_interval)
             default_openai_api_key = config_data.get('default_openai_api_key', default_openai_api_key)
@@ -77,41 +83,80 @@ def save_config(key, new_val):
 # endregion
 
 # region DB Related
-def save_to_screenshot_db(timestamp, image_bytes, image_path, response):
-    print(f'Saving to Screenshots DB...')
+def initialize_db():
+    print(f'Initializing DB...')
 
-    global screenshot_db_path
+    global db_path, sql_folder_path
+    
+    if not os.path.exists(sql_folder_path):
+        os.makedirs(sql_folder_path)
 
-    conn = sqlite3.connect(screenshot_db_path)
+    conn = sqlite3.connect(db_path)
     c = conn.cursor()
     
     c.execute('''CREATE TABLE IF NOT EXISTS screenshots
-                 (timestamp TEXT, image BLOB, image_path TEXT, api_response TEXT)''')
+                 (timestamp TEXT, image BLOB, image_path TEXT, api_response TEXT, content TEXT)''')
+    c.execute('''CREATE TABLE IF NOT EXISTS photos
+                 (timestamp TEXT, image BLOB, image_path TEXT, api_response TEXT, content TEXT)''')
     conn.commit()
-    
-    c.execute("INSERT INTO screenshots VALUES (?, ?, ?, ?)", (timestamp, image_bytes, image_path, response))
+    conn.close()
+
+    print(f'Initialized!\n')
+
+def save_to_screenshot_db(timestamp, image_bytes, image_path, response_text, content):
+    print(f'Saving to Screenshots DB...')
+
+    global db_path
+
+    conn = sqlite3.connect(db_path)
+    c = conn.cursor()
+    c.execute("INSERT INTO screenshots VALUES (?, ?, ?, ?, ?)", (timestamp, image_bytes, image_path, response_text, content))
     conn.commit()
     conn.close()
 
     print(f'Saved!\n')
 
-def save_to_photo_db(timestamp, image_bytes, image_path, response):
+def save_to_photo_db(timestamp, image_bytes, image_path, response, content):
     print(f'Saving to Photos DB...')
 
-    global photo_db_path
+    global db_path
 
-    conn = sqlite3.connect(photo_db_path)
+    conn = sqlite3.connect(db_path)
     c = conn.cursor()
-    
-    c.execute('''CREATE TABLE IF NOT EXISTS photos
-                 (timestamp TEXT, image BLOB, image_path TEXT, api_response TEXT)''')
-    conn.commit()
-    
-    c.execute("INSERT INTO photos VALUES (?, ?, ?, ?)", (timestamp, image_bytes, image_path, response))
+    c.execute("INSERT INTO photos VALUES (?, ?, ?, ?, ?)", (timestamp, image_bytes, image_path, response, content))
     conn.commit()
     conn.close()
 
     print(f'Saved!\n')
+
+def retrieve_from_db(table_name):
+    print(f'Retrieving from {table_name}...')
+
+    global db_path
+
+    conn = sqlite3.connect(db_path)
+    c = conn.cursor()
+    c.execute(f"SELECT image_path FROM {table_name} WHERE api_response IS NULL OR api_response = '' OR LENGTH(api_response)=0")
+    rows = c.fetchall()
+    conn.close()
+
+    print(f'Retrieved!\n')
+
+    return rows
+
+def update_api_response(table_name, filepath, response, content):
+    print(f'Updating {table_name}...')
+
+    global db_path
+
+    conn = sqlite3.connect(db_path)
+    c = conn.cursor()
+    c.execute(f"UPDATE {table_name} SET api_response = ? WHERE image_path = ?", (response, filepath))
+    c.execute(f"UPDATE {table_name} SET content = ? WHERE image_path = ?", (content, filepath))
+    conn.commit()
+    conn.close()
+
+    print(f'Updated!\n')
 # endregion
 
 # region Image LLM Related
@@ -229,7 +274,6 @@ def take_screenshot():
     screenshot.save(img_byte_arr, format='JPEG')
     return img_byte_arr.getvalue()
 
-# FIXME: Improve this to keep camera on all the time and just pull image byte data when function called
 def take_photo():
     global cap
 
@@ -268,11 +312,10 @@ def downscale_image(image_bytes, quality=90):
 def screenshot_loop():
     print(f'Started Screenshot Loop...')
 
-    global running, default_interval, default_downscale_perc
+    global running, screenshots_folder_path, default_interval, default_downscale_perc
     
-    folder_path = 'data/screenshots/'
-    if not os.path.exists(folder_path):
-        os.makedirs(folder_path)
+    if not os.path.exists(screenshots_folder_path):
+        os.makedirs(screenshots_folder_path)
 
     while running:        
         print(f'Running Screenshot Loop')
@@ -284,13 +327,13 @@ def screenshot_loop():
         
         # Save the original image to the specified path
         image_filename = f"{filename}.jpeg"
-        image_path = os.path.join(folder_path, image_filename)
+        image_path = os.path.join(screenshots_folder_path, image_filename)
         with open(image_path, 'wb') as f:
             f.write(original_image_bytes)
 
         # Save data to SQL
         downscaled_image_bytes = downscale_image(original_image_bytes, quality=default_downscale_perc)
-        save_to_screenshot_db(timestamp, downscaled_image_bytes, image_filename, '')
+        save_to_screenshot_db(timestamp, downscaled_image_bytes, image_filename, '', '')
 
         if not running:
             break
@@ -299,11 +342,10 @@ def screenshot_loop():
 def photo_loop():
     print(f'Started Photo Loop...')
 
-    global running, default_interval, default_downscale_perc
+    global running, photos_folder_path, default_interval, default_downscale_perc
 
-    folder_path = 'data/photos/'
-    if not os.path.exists(folder_path):
-        os.makedirs(folder_path)
+    if not os.path.exists(photos_folder_path):
+        os.makedirs(photos_folder_path)
 
     while running:        
         print(f'Running Photo Loop')
@@ -315,16 +357,70 @@ def photo_loop():
         
         # Save the original image to the specified path
         image_filename = f"{filename}.jpeg"
-        image_path = os.path.join(folder_path, image_filename)
+        image_path = os.path.join(photos_folder_path, image_filename)
         with open(image_path, 'wb') as f:
             f.write(original_image_bytes)
 
-        downscaled_image = downscale_image(original_image_bytes, quality=default_downscale_perc)
-        save_to_photo_db(timestamp, downscaled_image, image_filename, '')
+        downscaled_image_bytes = downscale_image(original_image_bytes, quality=default_downscale_perc)
+        save_to_photo_db(timestamp, downscaled_image_bytes, image_filename, '', '')
 
         if not running:
             break
         time.sleep(default_interval)
+
+# FIXME: Simplify async/thread logic
+def api_loop():
+    global NUM_THREADS, photos_folder_path, screenshots_folder_path
+
+    screenshots_filepaths = retrieve_from_db('screenshots')
+    photos_filepaths = retrieve_from_db('photos')
+    # print(f'screenshots_filepaths: {len(screenshots_filepaths)}\nphotos_filepaths: {len(photos_filepaths)}')
+    
+    # Create a queue for screenshots and start worker threads
+    screenshots_queue = Queue()
+    for filepath in screenshots_filepaths:
+        screenshots_queue.put(filepath[0])
+    screenshots_threads = []
+    for _ in range(NUM_THREADS):
+        thread = Thread(target=worker, args=(screenshots_queue, screenshots_folder_path, 'screenshots'))
+        thread.start()
+        screenshots_threads.append(thread)
+
+    # Create a queue for photos and start worker threads
+    photos_queue = Queue()
+    for filepath in photos_filepaths:
+        photos_queue.put(filepath[0])
+    photos_threads = []
+    for _ in range(NUM_THREADS):
+        thread = Thread(target=worker, args=(photos_queue, photos_folder_path, 'photos'))
+        thread.start()
+        photos_threads.append(thread)
+
+    # Wait for all threads to finish
+    screenshots_queue.join()
+    for _ in range(NUM_THREADS):
+        screenshots_queue.put(None)
+    for thread in screenshots_threads:
+        thread.join()
+
+    photos_queue.join()
+    for _ in range(NUM_THREADS):
+        photos_queue.put(None)
+    for thread in photos_threads:
+        thread.join()
+def worker(file_queue, folder_path, table_name):
+    while True:
+        filepath = file_queue.get()
+        if filepath is None:
+            break
+        image_path = os.path.join(folder_path, filepath)
+        with open(image_path, 'rb') as file:
+            image_bytes = file.read()
+        response = send_image_to_api(image_bytes)
+        response_text = str(response)
+        content_text = response['choices'][0]['message']['content']
+        update_api_response(table_name, filepath, response_text, content_text)
+        file_queue.task_done()
 
 def start_primary_process():
     print(f'Started Primary Loop')
@@ -339,7 +435,8 @@ def start_primary_process():
     screenshot_thread.start()
     photo_thread = Thread(target=photo_loop)
     photo_thread.start()
-
+    # api_thread = Thread(target=api_loop)
+    # api_thread.start()
 def stop_primary_process():
     print(f'Stopped Primary Loop')
     
@@ -399,8 +496,8 @@ def create_ui():
     main_color_500 = '#878787'
     main_color_1000 = '#141414'
     accent_color_100 = '#ab36ff'
-    width = 400
-    height = 800
+    width = 500
+    height = 600
 
     root = tk.Tk()
     root.config(bg=main_color_100)
@@ -421,10 +518,14 @@ def create_ui():
     title_label.pack(pady=(10, 5))
     # endregion
 
+    # region Input
+    frame_input = tk.Frame(root, bg=main_color_100)
+    frame_input.pack(side="left", padx=(10, 5), pady=(10, 5))
+
     # region Config
-    frame_config = tk.Frame(root, bg=main_color_100)
+    frame_config = tk.Frame(frame_input, bg=main_color_100)
     frame_config.pack(pady=(10, 5))
-    config_label = tk.Label(frame_config, text="Config", bg=main_color_100, fg=main_color_1000, font=('Arial', 16, 'bold'))
+    config_label = tk.Label(frame_config, text="Config", bg=main_color_100, fg=main_color_1000, font=('Arial', 12, 'bold'))
     config_label.pack(pady=(5, 10))
     # Interval
     label_interval = tk.Label(frame_config, text="Interval", bg=main_color_100, fg=main_color_1000)
@@ -436,9 +537,9 @@ def create_ui():
     # endregion
 
     # region Image Options
-    frame_image = tk.Frame(root, bg=main_color_100)
+    frame_image = tk.Frame(frame_input, bg=main_color_100)
     frame_image.pack(pady=(10, 5))
-    image_options_label = tk.Label(frame_image, text="Image Options", bg=main_color_100, fg=main_color_1000, font=('Arial', 16, 'bold'))
+    image_options_label = tk.Label(frame_image, text="Image Options", bg=main_color_100, fg=main_color_1000, font=('Arial', 12, 'bold'))
     image_options_label.pack(pady=(10, 5))
     # API Image Quality
     label_api_image_quality = tk.Label(frame_image, text="API Image Quality", bg=main_color_100, fg=main_color_1000)
@@ -459,9 +560,9 @@ def create_ui():
     # endregion
 
     # region Model Options
-    frame_model = tk.Frame(root, bg=main_color_100)
+    frame_model = tk.Frame(frame_input, bg=main_color_100)
     frame_model.pack(pady=(10, 5))
-    model_options_label = tk.Label(frame_model, text="Model Options", bg=main_color_100, fg=main_color_1000, font=('Arial', 16, 'bold'))
+    model_options_label = tk.Label(frame_model, text="Model Options", bg=main_color_100, fg=main_color_1000, font=('Arial', 12, 'bold'))
     model_options_label.pack(pady=(10, 5))
     # API Key
     label_api_key = tk.Label(frame_model, text="API Key", bg=main_color_100, fg=main_color_1000)
@@ -488,23 +589,49 @@ def create_ui():
     system_prompt_entry.bind('<FocusOut>', lambda event: update_system_prompt(system_prompt_entry.get()))
     # endregion
     
+    # endregion
+
+    # region Control
+    frame_control = tk.Frame(root, bg=main_color_100)
+    frame_control.pack(side="right", padx=(5, 10), pady=(10, 5))
+
     # region Buttons
-    frame_button = tk.Frame(root, bg=main_color_100)
+    frame_button = tk.Frame(frame_control, bg=main_color_100)
     frame_button.pack(pady=(10, 5))
     start_button = tk.Button(
         frame_button, 
         text="Start",  
-        bg=accent_color_100, fg=main_color_1000, borderwidth=0, highlightthickness=0, width=30, height=2,
+        bg=accent_color_100, fg=main_color_1000, borderwidth=0, highlightthickness=0, 
+        width=20, height=2,
         command=lambda: start_primary_process()
     )
     start_button.grid(row=0, column=0, padx=5, pady=10)
     stop_button = tk.Button(
         frame_button, 
         text="Stop", 
-        bg=accent_color_100, fg=main_color_1000, borderwidth=0, highlightthickness=0, width=30, height=2,
+        bg=accent_color_100, fg=main_color_1000, borderwidth=0, highlightthickness=0, 
+        width=20, height=2,
         command=lambda: stop_primary_process()
     )
     stop_button.grid(row=1, column=0, padx=5, pady=10)
+    api_call_button = tk.Button(
+        frame_button, 
+        text="API Call", 
+        bg=accent_color_100, fg=main_color_1000, borderwidth=0, highlightthickness=0, 
+        width=20, height=2,
+        command=lambda: api_loop()
+    )
+    api_call_button.grid(row=2, column=0, padx=5, pady=10)
+    summarize_button = tk.Button(
+        frame_button, 
+        text="Summarize", 
+        bg=accent_color_100, fg=main_color_1000, borderwidth=0, highlightthickness=0, 
+        width=20, height=2,
+        command=lambda: summarize()
+    )
+    summarize_button.grid(row=3, column=0, padx=5, pady=10)
+    # endregion
+
     # endregion
 
     root.mainloop()
@@ -513,4 +640,5 @@ def create_ui():
 if __name__ == "__main__":
     print(f'Starting EYES...\n')
     load_config()
+    initialize_db()
     create_ui()
