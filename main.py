@@ -20,7 +20,7 @@ from screeninfo import get_monitors
 # Global variables
 running = False
 interval = 5
-db_path = 'data/screenshots.db'
+image_db_path = 'data/screenshots.db'
 config_file = 'config.txt'
 model_combobox = None
 default_openai_api_key = ''
@@ -140,32 +140,27 @@ def encode_image(image_bytes):
 
 # region Image Related
 def take_screenshot():
-    screenshots = []
     with mss() as sct:
-        for monitor_number, monitor in enumerate(sct.monitors[1:], start=1):  # Skip the first entry which is the entire screen
-            print(f"Capturing screen: Monitor {monitor_number} at resolution {monitor['width']}x{monitor['height']}")
-            sct_img = sct.grab(monitor)
-            screenshot = Image.frombytes('RGB', (sct_img.width, sct_img.height), sct_img.rgb)
-            screenshots.append(screenshot)
+        # The first entry of sct.monitors is the entire screen
+        monitor = sct.monitors[0]
+        # Determine the width and height for cropping
+        width = min(3840, monitor['width'])
+        height = min(1080, monitor['height'])
 
-    if len(screenshots) >= 2:
-        first_screenshot = screenshots[0]
-        first_width, first_height = first_screenshot.size
+        # Grab the image
+        sct_img = sct.grab({
+            "top": monitor["top"], 
+            "left": monitor["left"], 
+            "width": width, 
+            "height": height
+        })
+        
+        screenshot = Image.frombytes('RGB', (sct_img.width, sct_img.height), sct_img.rgb)
 
-        second_screenshot = screenshots[1]
-        resized_second_screenshot = second_screenshot.resize((first_width, first_height), Image.Resampling.LANCZOS)
-
-        stitched_image = Image.new('RGB', (first_width * 2, first_height))
-        stitched_image.paste(first_screenshot, (0, 0))
-        stitched_image.paste(resized_second_screenshot, (first_width, 0))
-
-        img_byte_arr = io.BytesIO()
-        stitched_image.save(img_byte_arr, format='JPEG')
-        return img_byte_arr.getvalue()
-    else:
-        img_byte_arr = io.BytesIO()
-        screenshots[0].save(img_byte_arr, format='JPEG')
-        return img_byte_arr.getvalue()
+    # Save the image to a byte array
+    img_byte_arr = io.BytesIO()
+    screenshot.save(img_byte_arr, format='JPEG')
+    return img_byte_arr.getvalue()
 
 def downscale_image(image_bytes, quality=90):
     """
@@ -203,9 +198,9 @@ def initialize_db(db_file):
 def save_to_db(timestamp, image, response):
     print(f'Saving to DB...')
 
-    global db_path
+    global image_db_path
 
-    conn = sqlite3.connect(db_path)
+    conn = sqlite3.connect(image_db_path)
     c = conn.cursor()
     c.execute("INSERT INTO screenshots VALUES (?, ?, ?)", (timestamp, image, response))
     conn.commit()
@@ -274,10 +269,10 @@ def on_closing():
 def create_ui():
     print(f'Building UI...\n')
 
-    global root, db_path, default_system_prompt, model_combobox, compression_selection
+    global root, image_db_path, default_system_prompt, model_combobox, compression_selection
 
     load_config()
-    initialize_db(db_path) 
+    initialize_db(image_db_path) 
     
     # region Initial
     main_color_100 = '#ffffff'
@@ -289,6 +284,7 @@ def create_ui():
 
     root = tk.Tk()
     root.config(bg=main_color_100)
+    root.protocol("WM_DELETE_WINDOW", on_closing)
     root.title("EYES")
 
     # Calculate screen width and height
@@ -388,8 +384,6 @@ def create_ui():
     stop_button.grid(row=1, column=0, padx=5, pady=10)
     # endregion
     # endregion
-    
-    root.protocol("WM_DELETE_WINDOW", on_closing)
 
     root.mainloop()
 # endregion
