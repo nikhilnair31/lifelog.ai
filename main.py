@@ -21,7 +21,7 @@ from screeninfo import get_monitors
 
 # region Setup
 # Global variables
-global running, cap, photos_folder_path, screenshots_folder_path, sql_folder_path, db_path, config_file, default_model, default_interval, default_openai_api_key, default_downscale_perc, default_quality_val, default_system_prompt
+global running, cap, photos_folder_path, screenshots_folder_path, sql_folder_path, db_path, config_file, default_text_model, default_image_model, default_interval, default_openai_api_key, default_together_api_key, default_downscale_perc, default_quality_val, default_system_prompt
 
 NUM_THREADS = 2
 running = False
@@ -33,26 +33,30 @@ sql_folder_path = 'data/sql/'
 db_path = 'data/sql/data.db'
 config_file = 'config.json'
 
-default_model = 'GPT'
+default_text_model = 'GPT-3.5-Turbo'
+default_image_model = 'GPT'
 default_interval = 5
 default_openai_api_key = ''
+default_together_api_key = ''
 default_downscale_perc = 25
 default_quality_val = 'low'
-default_system_prompt = "Explain this screenshot of the user's desktop in detail"
+default_system_prompt = "What do you see? Be precise. You have the screenshots of my screen! Tell what you see on the screen and text you see in details! It can be rick and morty series, terminal, twitter, vs code, and other! answer with cool details! Answer in 20 words max! Make a story about my screenshot day out of it! If you can't see make best guess!"
 
 cap = None
 # endregion
 
 # region Configuration
 def load_config():
-    global config_file, default_model, default_interval, default_openai_api_key, default_downscale_perc, default_quality_val, default_system_prompt
+    global config_file, default_text_model, default_image_model, default_interval, default_openai_api_key, default_together_api_key, default_downscale_perc, default_quality_val, default_system_prompt
     try:
         with open(config_file, 'r') as file:
             config_data = json.load(file)
             print(f"Config file : {config_data}\n")
-            default_model = config_data.get('default_model', default_model)
+            default_text_model = config_data.get('default_text_model', default_text_model)
+            default_image_model = config_data.get('default_image_model', default_image_model)
             default_interval = config_data.get('default_interval', default_interval)
             default_openai_api_key = config_data.get('default_openai_api_key', default_openai_api_key)
+            default_together_api_key = config_data.get('default_together_api_key', default_together_api_key)
             default_downscale_perc = config_data.get('default_downscale_perc', default_downscale_perc)
             default_quality_val = config_data.get('default_quality_val', default_quality_val)
             default_system_prompt = config_data.get('default_system_prompt', default_system_prompt)
@@ -60,9 +64,11 @@ def load_config():
         print("Config file not found. Creating empty and using defaults.")
         with open(config_file, 'w') as file:
             json.dump({
-                'default_model': default_model,
+                'default_text_model': default_text_model,
+                'default_image_model': default_image_model,
                 'default_interval': default_interval,
                 'default_openai_api_key': default_openai_api_key,
+                'default_together_api_key': default_together_api_key,
                 'default_downscale_perc': default_downscale_perc,
                 'default_quality_val': default_quality_val,
                 'default_system_prompt': default_system_prompt
@@ -98,6 +104,8 @@ def initialize_db():
                  (timestamp TEXT, image BLOB, image_path TEXT, api_response TEXT, content TEXT)''')
     c.execute('''CREATE TABLE IF NOT EXISTS photos
                  (timestamp TEXT, image BLOB, image_path TEXT, api_response TEXT, content TEXT)''')
+    c.execute('''CREATE TABLE IF NOT EXISTS summary
+                 (timestamp TEXT, content TEXT)''')
     conn.commit()
     conn.close()
 
@@ -129,8 +137,21 @@ def save_to_photo_db(timestamp, image_bytes, image_path, response, content):
 
     print(f'Saved!\n')
 
-def retrieve_from_db(table_name):
-    print(f'Retrieving from {table_name}...')
+def save_to_summary_db(timestamp, content):
+    print(f'Saving to Summary DB...')
+
+    global db_path
+
+    conn = sqlite3.connect(db_path)
+    c = conn.cursor()
+    c.execute("INSERT INTO summary VALUES (?, ?)", (timestamp, content))
+    conn.commit()
+    conn.close()
+
+    print(f'Saved!\n')
+
+def retrieve_image_paths_from_db(table_name):
+    print(f'Retrieving image paths from {table_name}...')
 
     global db_path
 
@@ -142,7 +163,22 @@ def retrieve_from_db(table_name):
 
     print(f'Retrieved!\n')
 
-    return rows
+    return [row[0] for row in rows]
+
+def retrieve_contents_from_db(table_name):
+    print(f'Retrieving contents from {table_name}...')
+
+    global db_path
+
+    conn = sqlite3.connect(db_path)
+    c = conn.cursor()
+    c.execute(f"SELECT content FROM {table_name} WHERE content IS NOT NULL OR content != '' OR LENGTH(content)>0")
+    rows = c.fetchall()
+    conn.close()
+
+    print(f'Retrieved!\n')
+
+    return [row[0] for row in rows]
 
 def update_api_response(table_name, filepath, response, content):
     print(f'Updating {table_name}...')
@@ -159,23 +195,22 @@ def update_api_response(table_name, filepath, response, content):
     print(f'Updated!\n')
 # endregion
 
-# region Image LLM Related
+# region Foundation Model Related
 def send_image_to_api(image_bytes):
     """Determine which API to call based on the model selection and send the screenshot."""
 
-    print(f'Sending Screenshot to API...')
+    print(f'Sending Images to API...')
     
-    if default_model == "GPT":
-        response = call_open_ai_api(image_bytes)
-    elif default_model == "Moondream":
+    if default_image_model == "GPT":
+        response = call_gpt4v_api(image_bytes)
+    elif default_image_model == "Moondream":
         response = call_moondream_api(image_bytes)
     else:
-        print("Invalid model selection.")
+        print(f"Invalid model selection: {default_image_model}")
         return None
     
     return response
-
-def call_open_ai_api(image_bytes):
+def call_gpt4v_api(image_bytes):
     """Send the screenshot to the API and return the response."""
 
     print(f'Calling OpenAI API...')
@@ -244,6 +279,101 @@ def call_moondream_api(image_bytes):
     finally:
         # Optionally delete the temp file if not needed anymore
         os.unlink(tmpfile_path)
+
+def send_text_to_api(text_list):
+    """Determine which API to call based on the model selection and send the screenshot."""
+
+    print(f'Sending Text to API...')
+    
+    if default_text_model == "GPT-3.5-Turbo":
+        response = call_together_api('gpt-3.5-turbo', "gpt", text_list)
+    elif default_text_model == "GPT-4-Turbo":
+        response = call_together_api('gpt-4-turbo-preview', "gpt", text_list)
+    elif default_text_model == "Mixtral-8x7B-Instruct-v0.1":
+        response = call_together_api('mistralai/Mixtral-8x7B-Instruct-v0.1', "together", text_list)
+    elif default_text_model == "OpenHermes-Mistral-7B":
+        response = call_together_api('teknium/OpenHermes-2p5-Mistral-7B', "together", text_list)
+    else:
+        print(f"Invalid model selection: {default_text_model}")
+        return None
+    
+    return response
+    """Send the contents to the API and return the response."""
+
+    print(f'Calling GPT API...')
+    
+    start_time = time.time()  # Capture start time
+
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {default_openai_api_key}"
+    }
+    payload = {
+        "model": model_name,
+        "messages": [
+            {
+                "role": "system",
+                "content": "You are a helpful assistant. You have received the description of screenshots and webcam images from the user. You need to summarize the day."
+            },
+            {
+                "role": "user",
+                "content": "Summarize today's events. Format it nicely in bullet poitns in HTML. Your WHOLE answer must be in HTML."
+            },
+            {
+                "role": "assistant",
+                "content": "\n".join(contents)
+            }
+        ]
+    }
+    
+    response = requests.post("https://api.openai.com/v1/chat/completions", headers=headers, json=payload)
+    
+    elapsed_time = time.time() - start_time  # Calculate elapsed time
+    print(f'Received response in {elapsed_time:.2f} seconds.')  # Print the elapsed time to two decimal places
+    
+    return response.json()
+def call_together_api(model_name, source, contents):
+    """Send the contents to the API and return the response."""
+
+    print(f'Calling Together API...')
+    
+    start_time = time.time()
+    
+    if source == "gpt":
+        url = "https://api.openai.com/v1/chat/completions"
+        api_key = default_openai_api_key
+    else:
+        url = "https://api.together.xyz/v1/chat/completions"
+        api_key = default_together_api_key
+
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {api_key}"
+    }
+    payload = {
+        "model": model_name,
+        "messages": [
+            {
+                "role": "system",
+                "content": "You are a helpful assistant. You have received the description of screenshots and webcam images from the user. You need to summarize the day."
+            },
+            {
+                "role": "user",
+                "content": "Summarize today's events. Format it nicely in bullet poitns in HTML. Your WHOLE answer must be in HTML."
+            },
+            {
+                "role": "assistant",
+                "content": "\n".join(contents)
+            }
+        ]
+    }
+    
+    response = requests.post(url, headers=headers, json=payload)
+    
+    elapsed_time = time.time() - start_time  # Calculate elapsed time
+    print(f'Received response in {elapsed_time:.2f} seconds.')  # Print the elapsed time to two decimal places
+    
+    return response.json()
 
 def encode_image(image_bytes):
     """Encode image bytes to base64."""
@@ -372,14 +502,14 @@ def photo_loop():
 def api_loop():
     global NUM_THREADS, photos_folder_path, screenshots_folder_path
 
-    screenshots_filepaths = retrieve_from_db('screenshots')
-    photos_filepaths = retrieve_from_db('photos')
+    screenshots_filepaths = retrieve_image_paths_from_db('screenshots')
+    photos_filepaths = retrieve_image_paths_from_db('photos')
     # print(f'screenshots_filepaths: {len(screenshots_filepaths)}\nphotos_filepaths: {len(photos_filepaths)}')
     
     # Create a queue for screenshots and start worker threads
     screenshots_queue = Queue()
     for filepath in screenshots_filepaths:
-        screenshots_queue.put(filepath[0])
+        screenshots_queue.put(filepath)
     screenshots_threads = []
     for _ in range(NUM_THREADS):
         thread = Thread(target=worker, args=(screenshots_queue, screenshots_folder_path, 'screenshots'))
@@ -389,7 +519,7 @@ def api_loop():
     # Create a queue for photos and start worker threads
     photos_queue = Queue()
     for filepath in photos_filepaths:
-        photos_queue.put(filepath[0])
+        photos_queue.put(filepath)
     photos_threads = []
     for _ in range(NUM_THREADS):
         thread = Thread(target=worker, args=(photos_queue, photos_folder_path, 'photos'))
@@ -422,6 +552,23 @@ def worker(file_queue, folder_path, table_name):
         update_api_response(table_name, filepath, response_text, content_text)
         file_queue.task_done()
 
+def summarize():
+    screenshots_contents = retrieve_contents_from_db('screenshots')
+    photos_contents = retrieve_contents_from_db('photos')
+
+    full_contents = []
+    full_contents.extend(screenshots_contents)
+    full_contents.extend(photos_contents)
+
+    response = send_text_to_api(full_contents)
+    print(f'response: {response}')
+
+    timestamp = time.strftime('%Y-%m-%d %H:%M:%S')
+    content = response['choices'][0]['message']['content']
+    save_to_summary_db(timestamp, content)
+    
+    print(f'Summary\n{content}')
+    
 def start_primary_process():
     print(f'Started Primary Loop')
     
@@ -453,31 +600,36 @@ def update_interval(new_interval):
     print(f'Updating Interval from {default_interval} to {new_interval}')
     default_interval = int(new_interval)
     save_config('default_interval', default_interval)
-def update_system_prompt(new_system_prompt):
-    global default_system_prompt
-    print(f'Updating Default System Prompt from {default_system_prompt} to {new_system_prompt}')
-    default_system_prompt = str(new_system_prompt)
-    save_config('default_system_prompt', default_system_prompt)
-def update_openai_api_key(new_openai_api_key):
-    global default_openai_api_key
-    print(f'Updating OpenAI API Key from {default_openai_api_key} to {new_openai_api_key}')
-    default_openai_api_key = str(new_openai_api_key)
-    save_config('new_openai_api_key', new_openai_api_key)
 def update_quality_level(new_quality_val):
     global default_quality_val
     print(f'Updating Quality % from {default_quality_val} to {new_quality_val}')
     default_quality_val = str(new_quality_val)
     save_config('default_quality_val', default_quality_val)
+def update_openai_api_key(new_openai_api_key):
+    global default_openai_api_key
+    print(f'Updating OpenAI API Key from {default_openai_api_key} to {new_openai_api_key}')
+    default_openai_api_key = str(new_openai_api_key)
+    save_config('default_openai_api_key', default_openai_api_key)
+def update_together_api_key(new_together_api_key):
+    global default_together_api_key
+    print(f'Updating Together API Key from {default_together_api_key} to {new_together_api_key}')
+    default_together_api_key = str(new_together_api_key)
+    save_config('default_together_api_key', default_together_api_key)
 def update_compression_level(new_downscale_perc):
     global default_downscale_perc
     print(f'Updating Compression % from {default_downscale_perc} to {new_downscale_perc}')
     default_downscale_perc = int(new_downscale_perc)
     save_config('default_downscale_perc', default_downscale_perc)
-def update_model(new_model):
-    global default_model
-    print(f'Updating Model from {default_model} to {new_model}')
-    default_model = str(new_model)
-    save_config('default_model', default_model)
+def update_image_model(new_image_model):
+    global default_image_model
+    print(f'Updating Image Model from {default_image_model} to {new_image_model}')
+    default_image_model = str(new_image_model)
+    save_config('default_image_model', default_image_model)
+def update_text_model(new_text_model):
+    global default_text_model
+    print(f'Updating Text Model from {default_text_model} to {new_text_model}')
+    default_text_model = str(new_text_model)
+    save_config('default_text_model', default_text_model)
 
 def on_closing():
     print("Closing application...")
@@ -489,7 +641,7 @@ def on_closing():
 def create_ui():
     print(f'Building UI...\n')
 
-    global root, default_model, default_interval, default_openai_api_key, default_downscale_perc, default_quality_val, default_system_prompt
+    global root, default_text_model, default_image_model, default_interval, default_together_api_key, default_openai_api_key, default_downscale_perc, default_quality_val, default_system_prompt
     
     # region Initial
     main_color_100 = '#ffffff'
@@ -513,9 +665,6 @@ def create_ui():
     y = (screen_height / 2) - (height / 2)
 
     root.geometry(f'{width}x{height}+{int(x)}+{int(y)}')
-
-    title_label = tk.Label(root, text="EYES", bg=main_color_100, fg=main_color_1000, font=('Arial', 20, 'bold'))
-    title_label.pack(pady=(10, 5))
     # endregion
 
     # region Input
@@ -564,29 +713,46 @@ def create_ui():
     frame_model.pack(pady=(10, 5))
     model_options_label = tk.Label(frame_model, text="Model Options", bg=main_color_100, fg=main_color_1000, font=('Arial', 12, 'bold'))
     model_options_label.pack(pady=(10, 5))
-    # API Key
-    label_api_key = tk.Label(frame_model, text="API Key", bg=main_color_100, fg=main_color_1000)
-    label_api_key.pack()
+    # OpenAI API Key
+    openai_api_key = tk.Label(frame_model, text="OpenAI API Key", bg=main_color_100, fg=main_color_1000)
+    openai_api_key.pack()
     openai_api_key_entry = tk.Entry(frame_model, width=30, show="*")
     openai_api_key_entry.pack()
     openai_api_key_entry.insert(0, str(default_openai_api_key))
     openai_api_key_entry.bind('<FocusOut>', lambda event: update_openai_api_key(openai_api_key_entry.get()))
-    # Model
-    label_model = tk.Label(frame_model, text="Model", bg=main_color_100, fg=main_color_1000)
-    label_model.pack()
-    model_list = ["GPT", "Moondream"]
-    model_combobox = ttk.Combobox(frame_model, values=model_list, width=30)
-    model_combobox.configure(background=main_color_100, foreground=main_color_1000)
-    model_combobox.set(default_model)
-    model_combobox.pack()
-    model_combobox.bind('<FocusOut>', lambda event: update_model(model_combobox.get()))
-    # System Prompt
-    label_system_prompt = tk.Label(frame_model, text="System Prompt", bg=main_color_100, fg=main_color_1000)
-    label_system_prompt.pack()
-    system_prompt_entry = tk.Text(frame_model, width=30, height=3)
-    system_prompt_entry.pack()
-    system_prompt_entry.insert(1.0, default_system_prompt)
-    system_prompt_entry.bind('<FocusOut>', lambda event: update_system_prompt(system_prompt_entry.get()))
+    # Together API Key
+    together_api_key = tk.Label(frame_model, text="Together API Key", bg=main_color_100, fg=main_color_1000)
+    together_api_key.pack()
+    together_api_key_entry = tk.Entry(frame_model, width=30, show="*")
+    together_api_key_entry.pack()
+    together_api_key_entry.insert(0, str(default_together_api_key))
+    together_api_key_entry.bind('<FocusOut>', lambda event: update_together_api_key(together_api_key_entry.get()))
+    # Image Model
+    label_image_model = tk.Label(frame_model, text="Model", bg=main_color_100, fg=main_color_1000)
+    label_image_model.pack()
+    image_model_list = [
+        "GPT", 
+        "Moondream"
+    ]
+    image_model_combobox = ttk.Combobox(frame_model, values=image_model_list, width=30)
+    image_model_combobox.configure(background=main_color_100, foreground=main_color_1000)
+    image_model_combobox.set(default_image_model)
+    image_model_combobox.pack()
+    image_model_combobox.bind('<FocusOut>', lambda event: update_image_model(image_model_combobox.get()))
+    # Image Model
+    label_text_model = tk.Label(frame_model, text="Model", bg=main_color_100, fg=main_color_1000)
+    label_text_model.pack()
+    text_model_list = [
+        "GPT-3.5-Turbo", 
+        "GPT-4-Turbo",
+        "Mixtral-8x7B-Instruct-v0.1",
+        "OpenHermes-Mistral-7B"
+    ]
+    text_model_combobox = ttk.Combobox(frame_model, values=text_model_list, width=30)
+    text_model_combobox.configure(background=main_color_100, foreground=main_color_1000)
+    text_model_combobox.set(default_text_model)
+    text_model_combobox.pack()
+    text_model_combobox.bind('<FocusOut>', lambda event: update_text_model(text_model_combobox.get()))
     # endregion
     
     # endregion
