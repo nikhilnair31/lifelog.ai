@@ -230,7 +230,7 @@ def call_gpt4v_api(image_bytes):
                 "content": [
                     {
                         "type": "text",
-                        "text": "What's in this image?"
+                        "text": default_system_prompt
                     },
                     {
                         "type": "image_url",
