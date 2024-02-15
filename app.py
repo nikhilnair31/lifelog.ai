@@ -48,10 +48,7 @@ audio_model_list = [
 ]
 # endregion
 
-# region Primary Related 
-# def agent():
-#     Thread(target=agentManager.agent_summarize).start()
-    
+# region Primary Related
 def start_primary_process():
     print(f'Started!\n')
 
@@ -117,8 +114,8 @@ def create_ui():
     main_color_500 = '#878787'
     main_color_1000 = '#141414'
     accent_color_100 = '#ab36ff'
-    width = 400
-    height = 600
+    width = 350
+    height = 550
 
     root = tk.Tk()
     root.config(bg=main_color_100)
@@ -139,13 +136,13 @@ def create_ui():
     # region Input
     
     frame_input = tk.Frame(root, bg=main_color_100)
-    frame_input.pack(side="left", padx=(10, 5), pady=(10, 5))
+    frame_input.pack()
 
     # region Config
     frame_config = tk.Frame(frame_input, bg=main_color_100)
-    frame_config.pack(pady=(10, 5))
+    frame_config.pack(pady=5)
     config_label = tk.Label(frame_config, text="Config", bg=main_color_100, fg=main_color_1000, font=('Arial', 12, 'bold'))
-    config_label.pack(pady=(5, 10))
+    config_label.pack(pady=5)
     # Interval
     label_interval = tk.Label(frame_config, text="Interval", bg=main_color_100, fg=main_color_1000)
     label_interval.pack()
@@ -157,9 +154,9 @@ def create_ui():
 
     # region Image Options
     frame_image = tk.Frame(frame_input, bg=main_color_100)
-    frame_image.pack(pady=(10, 5))
+    frame_image.pack(pady=5)
     image_options_label = tk.Label(frame_image, text="Image Options", bg=main_color_100, fg=main_color_1000, font=('Arial', 12, 'bold'))
-    image_options_label.pack(pady=(10, 5))
+    image_options_label.pack(pady=5)
     # API Image Quality
     label_api_image_quality = tk.Label(frame_image, text="API Image Quality", bg=main_color_100, fg=main_color_1000)
     label_api_image_quality.pack()
@@ -178,9 +175,9 @@ def create_ui():
 
     # region Model Options
     frame_model = tk.Frame(frame_input, bg=main_color_100)
-    frame_model.pack(pady=(10, 5))
+    frame_model.pack(pady=5)
     model_options_label = tk.Label(frame_model, text="Model Options", bg=main_color_100, fg=main_color_1000, font=('Arial', 12, 'bold'))
-    model_options_label.pack(pady=(10, 5))
+    model_options_label.pack(pady=5)
     # OpenAI API Key
     openai_api_key = tk.Label(frame_model, text="OpenAI API Key", bg=main_color_100, fg=main_color_1000)
     openai_api_key.pack()
@@ -217,12 +214,12 @@ def create_ui():
 
     # region Control
     frame_control = tk.Frame(root, bg=main_color_100)
-    frame_control.pack(side="right", padx=(5, 10), pady=(10, 5))
+    frame_control.pack()
 
     # region Buttons
     
     frame_button = tk.Frame(frame_control, bg=main_color_100)
-    frame_button.pack(pady=(10, 5))
+    frame_button.pack(pady=5)
     
     start_button = tk.Button(
         frame_button, 
@@ -231,7 +228,7 @@ def create_ui():
         width=20, height=2,
         command=lambda: start_primary_process()
     )
-    start_button.grid(row=0, column=0, padx=5, pady=10)
+    start_button.grid(row=0, column=0, padx=5, pady=5)
     stop_button = tk.Button(
         frame_button, 
         text="Stop", 
@@ -239,15 +236,7 @@ def create_ui():
         width=20, height=2,
         command=lambda: stop_primary_process()
     )
-    stop_button.grid(row=1, column=0, padx=5, pady=10)
-    # agent_button = tk.Button(
-    #     frame_button, 
-    #     text="Agent", 
-    #     bg=accent_color_100, fg=main_color_1000, borderwidth=0, highlightthickness=0, 
-    #     width=20, height=2,
-    #     command=lambda: agent()
-    # )
-    # agent_button.grid(row=3, column=0, padx=5, pady=10)
+    stop_button.grid(row=1, column=0, padx=5, pady=5)
     # endregion
 
     # endregion
