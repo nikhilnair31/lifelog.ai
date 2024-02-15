@@ -45,156 +45,6 @@ default_system_prompt = "What do you see? Be precise. You have the screenshots o
 cap = None
 # endregion
 
-# region Configuration
-def load_config():
-    global config_file, default_text_model, default_image_model, default_interval, default_openai_api_key, default_together_api_key, default_downscale_perc, default_quality_val, default_system_prompt
-    try:
-        with open(config_file, 'r') as file:
-            config_data = json.load(file)
-            print(f"Config file : {config_data}\n")
-            default_text_model = config_data.get('default_text_model', default_text_model)
-            default_image_model = config_data.get('default_image_model', default_image_model)
-            default_interval = config_data.get('default_interval', default_interval)
-            default_openai_api_key = config_data.get('default_openai_api_key', default_openai_api_key)
-            default_together_api_key = config_data.get('default_together_api_key', default_together_api_key)
-            default_downscale_perc = config_data.get('default_downscale_perc', default_downscale_perc)
-            default_quality_val = config_data.get('default_quality_val', default_quality_val)
-            default_system_prompt = config_data.get('default_system_prompt', default_system_prompt)
-    except FileNotFoundError:
-        print("Config file not found. Creating empty and using defaults.")
-        with open(config_file, 'w') as file:
-            json.dump({
-                'default_text_model': default_text_model,
-                'default_image_model': default_image_model,
-                'default_interval': default_interval,
-                'default_openai_api_key': default_openai_api_key,
-                'default_together_api_key': default_together_api_key,
-                'default_downscale_perc': default_downscale_perc,
-                'default_quality_val': default_quality_val,
-                'default_system_prompt': default_system_prompt
-            }, file)
-            pass
-    except Exception as e:
-        print("Error loading config file:", e)
-
-def save_config(key, new_val):
-    try:
-        with open(config_file, 'r') as file:
-            config_data = json.load(file)
-        config_data[key] = new_val
-        with open(config_file, 'w') as outfile:
-            json.dump(config_data, outfile)
-    except Exception as e:
-        print("Error saving config file:", e)
-# endregion
-
-# region DB Related
-def initialize_db():
-    print(f'Initializing DB...')
-
-    global db_path, sql_folder_path
-    
-    if not os.path.exists(sql_folder_path):
-        os.makedirs(sql_folder_path)
-
-    conn = sqlite3.connect(db_path)
-    c = conn.cursor()
-    
-    c.execute('''CREATE TABLE IF NOT EXISTS screenshots
-                 (timestamp TEXT, image BLOB, image_path TEXT, api_response TEXT, content TEXT)''')
-    c.execute('''CREATE TABLE IF NOT EXISTS photos
-                 (timestamp TEXT, image BLOB, image_path TEXT, api_response TEXT, content TEXT)''')
-    c.execute('''CREATE TABLE IF NOT EXISTS summary
-                 (timestamp TEXT, content TEXT)''')
-    conn.commit()
-    conn.close()
-
-    print(f'Initialized!\n')
-
-def save_to_screenshot_db(timestamp, image_bytes, image_path, response_text, content):
-    print(f'Saving to Screenshots DB...')
-
-    global db_path
-
-    conn = sqlite3.connect(db_path)
-    c = conn.cursor()
-    c.execute("INSERT INTO screenshots VALUES (?, ?, ?, ?, ?)", (timestamp, image_bytes, image_path, response_text, content))
-    conn.commit()
-    conn.close()
-
-    print(f'Saved!\n')
-
-def save_to_photo_db(timestamp, image_bytes, image_path, response, content):
-    print(f'Saving to Photos DB...')
-
-    global db_path
-
-    conn = sqlite3.connect(db_path)
-    c = conn.cursor()
-    c.execute("INSERT INTO photos VALUES (?, ?, ?, ?, ?)", (timestamp, image_bytes, image_path, response, content))
-    conn.commit()
-    conn.close()
-
-    print(f'Saved!\n')
-
-def save_to_summary_db(timestamp, content):
-    print(f'Saving to Summary DB...')
-
-    global db_path
-
-    conn = sqlite3.connect(db_path)
-    c = conn.cursor()
-    c.execute("INSERT INTO summary VALUES (?, ?)", (timestamp, content))
-    conn.commit()
-    conn.close()
-
-    print(f'Saved!\n')
-
-def retrieve_image_paths_from_db(table_name):
-    print(f'Retrieving image paths from {table_name}...')
-
-    global db_path
-
-    conn = sqlite3.connect(db_path)
-    c = conn.cursor()
-    c.execute(f"SELECT image_path FROM {table_name} WHERE api_response IS NULL OR api_response = '' OR LENGTH(api_response)=0")
-    rows = c.fetchall()
-    conn.close()
-
-    print(f'Retrieved!\n')
-
-    return [row[0] for row in rows]
-
-def retrieve_contents_from_db(table_name):
-    print(f'Retrieving contents from {table_name}...')
-
-    global db_path
-
-    conn = sqlite3.connect(db_path)
-    c = conn.cursor()
-    c.execute(f"SELECT content FROM {table_name} WHERE content IS NOT NULL OR content != '' OR LENGTH(content)>0")
-    rows = c.fetchall()
-    conn.close()
-
-    print(f'Retrieved!\n')
-
-    return [row[0] for row in rows]
-
-def update_api_response(table_name, filepath, response, content):
-    print(f'Updating {table_name}...')
-
-    global db_path
-
-    conn = sqlite3.connect(db_path)
-    c = conn.cursor()
-    c.execute(f"UPDATE {table_name} SET api_response = ? WHERE image_path = ?", (response, filepath))
-    c.execute(f"UPDATE {table_name} SET content = ? WHERE image_path = ?", (content, filepath))
-    conn.commit()
-    conn.close()
-
-    print(f'Updated!\n')
-# endregion
-
 # region Foundation Model Related
 def send_image_to_api(image_bytes):
     """Determine which API to call based on the model selection and send the screenshot."""
@@ -801,6 +651,168 @@ def create_ui():
     # endregion
 
     root.mainloop()
+# endregion
+
+# region DB Related
+def initialize_db():
+    print(f'Initializing DB...')
+
+    global db_path, sql_folder_path
+    
+    if not os.path.exists(sql_folder_path):
+        os.makedirs(sql_folder_path)
+
+    conn = sqlite3.connect(db_path)
+    c = conn.cursor()
+    c.execute('''
+    CREATE TABLE IF NOT EXISTS screenshots 
+    (timestamp TEXT, image BLOB, image_path TEXT, api_response TEXT, content TEXT)
+    ''')
+    c.execute('''
+    CREATE TABLE IF NOT EXISTS photos
+    (timestamp TEXT, image BLOB, image_path TEXT, api_response TEXT, content TEXT)
+    ''')
+    c.execute('''
+    CREATE TABLE IF NOT EXISTS summary
+    (timestamp TEXT, content TEXT)
+    ''')
+    conn.commit()
+    conn.close()
+
+    print(f'Initialized!\n')
+
+def save_to_screenshot_db(timestamp, image_bytes, image_path, response_text, content):
+    print(f'Saving to Screenshots DB...')
+
+    global db_path
+
+    conn = sqlite3.connect(db_path)
+    c = conn.cursor()
+    c.execute("INSERT INTO screenshots VALUES (?, ?, ?, ?, ?)", (timestamp, image_bytes, image_path, response_text, content))
+    conn.commit()
+    conn.close()
+
+    print(f'Saved!\n')
+
+def save_to_photo_db(timestamp, image_bytes, image_path, response, content):
+    print(f'Saving to Photos DB...')
+
+    global db_path
+
+    conn = sqlite3.connect(db_path)
+    c = conn.cursor()
+    c.execute("INSERT INTO photos VALUES (?, ?, ?, ?, ?)", (timestamp, image_bytes, image_path, response, content))
+    conn.commit()
+    conn.close()
+
+    print(f'Saved!\n')
+
+def save_to_summary_db(timestamp, content):
+    print(f'Saving to Summary DB...')
+
+    global db_path
+
+    conn = sqlite3.connect(db_path)
+    c = conn.cursor()
+    c.execute("INSERT INTO summary VALUES (?, ?)", (timestamp, content))
+    conn.commit()
+    conn.close()
+
+    print(f'Saved!\n')
+
+def retrieve_image_paths_from_db(table_name):
+    print(f'Retrieving image paths from {table_name}...')
+
+    global db_path
+
+    conn = sqlite3.connect(db_path)
+    c = conn.cursor()
+    c.execute(f"SELECT image_path FROM {table_name} WHERE api_response IS NULL OR api_response = '' OR LENGTH(api_response)=0")
+    rows = c.fetchall()
+    conn.close()
+
+    print(f'Retrieved!\n')
+
+    return [row[0] for row in rows]
+
+def retrieve_contents_from_db(table_name):
+    print(f'Retrieving contents from {table_name}...')
+
+    global db_path
+
+    conn = sqlite3.connect(db_path)
+    c = conn.cursor()
+    c.execute(f"SELECT content FROM {table_name} WHERE content IS NOT NULL OR content != '' OR LENGTH(content)>0")
+    rows = c.fetchall()
+    conn.close()
+
+    print(f'Retrieved!\n')
+
+    return [row[0] for row in rows]
+
+def update_api_response(table_name, filepath, response, content):
+    print(f'Updating {table_name}...')
+
+    global db_path
+
+    conn = sqlite3.connect(db_path)
+    c = conn.cursor()
+    c.execute(f"UPDATE {table_name} SET api_response = ? WHERE image_path = ?", (response, filepath))
+    c.execute(f"UPDATE {table_name} SET content = ? WHERE image_path = ?", (content, filepath))
+    conn.commit()
+    conn.close()
+
+    print(f'Updated!\n')
+# endregion
+
+# region Configuration
+def load_config():
+    global config_file, default_openai_api_key, default_together_api_key, default_text_model, default_image_model, default_system_prompt, default_downscale_perc, default_quality_val, default_interval
+    try:
+        with open(config_file, 'r') as file:
+            config_data = json.load(file)
+            print(f"Config file : {config_data}\n")
+
+            default_openai_api_key = config_data.get('default_openai_api_key', default_openai_api_key)
+            default_together_api_key = config_data.get('default_together_api_key', default_together_api_key)
+            default_text_model = config_data.get('default_text_model', default_text_model)
+            default_image_model = config_data.get('default_image_model', default_image_model)
+            default_system_prompt = config_data.get('default_system_prompt', default_system_prompt)
+            default_downscale_perc = config_data.get('default_downscale_perc', default_downscale_perc)
+            default_quality_val = config_data.get('default_quality_val', default_quality_val)
+            default_interval = config_data.get('default_interval', default_interval)
+    
+    except FileNotFoundError:
+        print("Config file not found. Creating empty and using defaults.")
+        with open(config_file, 'w') as file:
+            json.dump({
+                'default_openai_api_key': default_openai_api_key,
+                'default_together_api_key': default_together_api_key,
+                'default_text_model': default_text_model,
+                'default_image_model': default_image_model,
+                'default_system_prompt': default_system_prompt,
+                'default_downscale_perc': default_downscale_perc,
+                'default_quality_val': default_quality_val,
+                'default_interval': default_interval,
+            }, file)
+            pass
+    
+    except Exception as e:
+        print("Error loading config file:", e)
+
+def save_config(key, new_val):
+    try:
+        # Open config file and load it into a dict
+        with open(config_file, 'r') as file:
+            config_data = json.load(file)
+        # Upodate dict's value by key
+        config_data[key] = new_val
+        # Rewrite dict into config file
+        with open(config_file, 'w') as outfile:
+            json.dump(config_data, outfile)
+    
+    except Exception as e:
+        print("Error saving config file:", e)
 # endregion
 
 if __name__ == "__main__":
