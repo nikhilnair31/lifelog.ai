@@ -13,8 +13,9 @@ class PhotoManager:
         self.imageManager = imageManager
 
         self.photos_folder_path = 'data/photos/'
-        self.default_interval = 10
+        self.default_interval = 120
         self.default_downscale_perc = 25
+        self.default_system_prompt = "What do you see?"
         self.cap = None
 
     def take_photo(self):
@@ -40,7 +41,7 @@ class PhotoManager:
             
             # Pass through Vision LLM
             original_image_bytes_base64_encoded = self.imageManager.encode_image(original_image_bytes)
-            description_text = self.modelManager.send_image_to_api(original_image_bytes_base64_encoded)
+            description_text = self.modelManager.send_image_to_api(original_image_bytes_base64_encoded, self.default_system_prompt)
             
             # Save the original image to the specified path
             downscaled_image_bytes = self.imageManager.downscale_image(original_image_bytes, quality=self.default_downscale_perc)

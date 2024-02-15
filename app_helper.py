@@ -25,33 +25,33 @@ class ControlManager:
 # region ModelManager
 class ModelManager:
     def __init__(self, default_openai_api_key, default_together_api_key, 
-            default_text_model, default_image_model, default_system_prompt):
+            default_text_model, default_image_model):
         self.default_openai_api_key = default_openai_api_key
         self.default_together_api_key = default_together_api_key
         self.default_text_model = default_text_model
         self.default_image_model = default_image_model
-        self.default_system_prompt = default_system_prompt
 
-    def send_image_to_api(self, image_bytes):
+    def send_image_to_api(self, image_bytes, system_prompt):
         """Determine which API to call based on the model selection and send the screenshot."""
 
         print(f'Sending Images to API...')
         
         if self.default_image_model == "GPT":
-            response = self.call_gpt4v_api(image_bytes)
+            response = self.call_gpt4v_api(image_bytes, system_prompt)
         elif self.default_image_model == "Moondream":
-            response = self.call_moondream_api(image_bytes)
+            response = self.call_moondream_api(image_bytes, system_prompt)
         else:
             print(f"Invalid model selection: {self.default_image_model}")
             return None
         
         return response
-    def call_gpt4v_api(self, image_bytes):
+    def call_gpt4v_api(self, image_bytes, system_prompt):
         """Send the screenshot to the API and return the response."""
 
         print(f'Calling GPT4V API...')
         
-        start_time = time.time()  # Capture start time
+        # Capture start time
+        start_time = time.time()
 
         headers = {
             "Content-Type": "application/json",
@@ -65,7 +65,7 @@ class ModelManager:
                     "content": [
                         {
                             "type": "text",
-                            "text": self.default_system_prompt
+                            "text": system_prompt
                         },
                         {
                             "type": "image_url",
@@ -81,13 +81,14 @@ class ModelManager:
         }
         
         response = requests.post("https://api.openai.com/v1/chat/completions", headers=headers, json=payload)
-        print(response.json())
+        # print(response.json())
         
-        elapsed_time = time.time() - start_time  # Calculate elapsed time
-        print(f'Received response in {elapsed_time:.2f} seconds.')  # Print the elapsed time to two decimal places
+        # Time calculation
+        elapsed_time = time.time() - start_time
+        print(f'Received response in {elapsed_time:.2f} seconds.')
         
         return response.json()['choices'][0]['message']['content']
-    def call_moondream_api(self, image_bytes):
+    def call_moondream_api(self, image_bytes, system_prompt):
         print(f'Calling Moondream API...')
 
         # Load the image from bytes for a sanity check or manipulation if needed
@@ -105,7 +106,7 @@ class ModelManager:
         try:
             result = client.predict(
                 tmpfile_path,
-                default_system_prompt,  
+                system_prompt,  
                 api_name="/answer_question"
             )
             return result
@@ -154,7 +155,7 @@ class ModelManager:
         }
         
         response = requests.post(url, headers=headers, json=payload)
-        print(response.json())
+        # print(response.json())
         
         elapsed_time = time.time() - start_time  # Calculate elapsed time
         print(f'Received response in {elapsed_time:.2f} seconds.')  # Print the elapsed time to two decimal places
@@ -168,14 +169,19 @@ class ImageManager:
         pass
 
     def downscale_image(self, image_bytes, quality=90):
-        print('Downscaling Screenshot...')
-        img = Image.open(io.BytesIO(image_bytes))
-        img_byte_arr = io.BytesIO()
-        img.save(img_byte_arr, format='JPEG', quality=quality)
-        return img_byte_arr.getvalue()
+        try:
+            print('Downscaling Image...')
+            img = Image.open(io.BytesIO(image_bytes))
+            img_byte_arr = io.BytesIO()
+            img.save(img_byte_arr, format='JPEG', quality=quality)
+            return img_byte_arr.getvalue()
+        except Exception as e:
+            print("Downscaling Image Error:", e)
+            return None
         
     def negate_image(self, image_bytes):
         try:
+            print('Negating Image...')
             with Image.open(io.BytesIO(image_bytes)) as img:
                 # Convert image to grayscale
                 grayscale_img = img.convert('L')
@@ -186,10 +192,14 @@ class ImageManager:
                 inverted_img.save(output_img_byte_arr, format='JPEG')
             return output_img_byte_arr.getvalue()
         except Exception as e:
-            print("Error:", e)
+            print("Negate Image Error:", e)
             return None
 
     def encode_image(self, image_bytes):
         """Encode image bytes to base64."""
-        return base64.b64encode(image_bytes).decode('utf-8')
+        try:
+            return base64.b64encode(image_bytes).decode('utf-8')
+        except Exception as e:
+            print("Encode Image Error:", e)
+            return None
 # endregion

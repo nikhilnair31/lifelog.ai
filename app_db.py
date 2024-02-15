@@ -58,12 +58,12 @@ class DatabaseManager:
 
         print(f'Saved!\n')
 
-    def save_to_summary_db(self, timestamp, content):
+    def save_to_summary_db(self, timestamp, content_text):
         print(f'Saving to Summary DB...')
 
         conn = sqlite3.connect(self.db_path)
         c = conn.cursor()
-        c.execute("INSERT INTO summary VALUES (?, ?)", (timestamp, content))
+        c.execute("INSERT INTO summary VALUES (?, ?)", (timestamp, content_text))
         conn.commit()
         conn.close()
 

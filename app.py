@@ -11,9 +11,6 @@ from app_photo import PhotoManager
 # endregion
 
 # region Setup
-NUM_THREADS = 2
-controlManager = None
-
 photos_folder_path = 'data/photos/'
 screenshots_folder_path = 'data/screenshots/'
 sql_folder_path = 'data/sql/'
@@ -48,78 +45,7 @@ text_model_list = [
 ]
 # endregion
 
-# region Primary Loop Related
-# FIXME: Simplify async/thread logic
-def api_loop():
-    global NUM_THREADS, photos_folder_path, screenshots_folder_path
-
-    screenshots_filepaths = retrieve_image_paths_from_db('screenshots')
-    photos_filepaths = retrieve_image_paths_from_db('photos')
-    # print(f'screenshots_filepaths: {len(screenshots_filepaths)}\nphotos_filepaths: {len(photos_filepaths)}')
-    
-    # Create a queue for screenshots and start worker threads
-    screenshots_queue = Queue()
-    for filepath in screenshots_filepaths:
-        screenshots_queue.put(filepath)
-    screenshots_threads = []
-    for _ in range(NUM_THREADS):
-        thread = Thread(target=worker, args=(screenshots_queue, screenshots_folder_path, 'screenshots'))
-        thread.start()
-        screenshots_threads.append(thread)
-
-    # Create a queue for photos and start worker threads
-    photos_queue = Queue()
-    for filepath in photos_filepaths:
-        photos_queue.put(filepath)
-    photos_threads = []
-    for _ in range(NUM_THREADS):
-        thread = Thread(target=worker, args=(photos_queue, photos_folder_path, 'photos'))
-        thread.start()
-        photos_threads.append(thread)
-
-    # Wait for all threads to finish
-    screenshots_queue.join()
-    for _ in range(NUM_THREADS):
-        screenshots_queue.put(None)
-    for thread in screenshots_threads:
-        thread.join()
-
-    photos_queue.join()
-    for _ in range(NUM_THREADS):
-        photos_queue.put(None)
-    for thread in photos_threads:
-        thread.join()
-def worker(file_queue, folder_path, table_name):
-    while True:
-        filepath = file_queue.get()
-        if filepath is None:
-            break
-        image_path = os.path.join(folder_path, filepath)
-        with open(image_path, 'rb') as file:
-            image_bytes = file.read()
-        response = send_image_to_api(image_bytes)
-        response_text = str(response)
-        content_text = response['choices'][0]['message']['content']
-        update_api_response(table_name, filepath, response_text, content_text)
-        file_queue.task_done()
-
-def summarize():
-    screenshots_contents = retrieve_contents_from_db('screenshots')
-    photos_contents = retrieve_contents_from_db('photos')
-
-    full_contents = []
-    full_contents.extend(screenshots_contents)
-    full_contents.extend(photos_contents)
-
-    response = send_text_to_api(full_contents)
-    print(f'response: {response}')
-
-    timestamp = time.strftime('%Y-%m-%d %H:%M:%S')
-    content = response['choices'][0]['message']['content']
-    save_to_summary_db(timestamp, content)
-    
-    print(f'Summary\n{content}')
-    
+# region Primary Related 
 def start_primary_process():
     print(f'Started!\n')
 
@@ -330,10 +256,8 @@ def create_ui():
 if __name__ == "__main__":
     print(f'Starting EYES...\n')
 
-    configurationManager = ConfigurationManager(
-
-    )
-    default_openai_api_key, default_together_api_key, default_text_model, default_image_model, default_system_prompt, default_downscale_perc, default_quality_val, default_interval = configurationManager.load_config()
+    configManager = ConfigurationManager()
+    default_openai_api_key, default_together_api_key, default_text_model, default_image_model, default_downscale_perc, default_quality_val, default_interval = configManager.load_config()
 
     controlManager = ControlManager()
     imageManager = ImageManager(
@@ -344,7 +268,7 @@ if __name__ == "__main__":
     )
     modelManager = ModelManager(
         default_openai_api_key, default_together_api_key,
-        default_text_model, default_image_model, default_system_prompt
+        default_text_model, default_image_model
     )
     screenshotManager = ScreenshotManager(
         controlManager, modelManager, databaseManager, imageManager
