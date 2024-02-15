@@ -62,7 +62,7 @@ class AudioManager:
 
             # Pass through transcribe API
             transcript_text = self.modelManager.send_audio_to_api(audio_path)
-            print(f"transcript_text: {transcript_text}")
+            # print(f"transcript_text: {transcript_text}")
             
             # Pass transcript through LLM
             payload = {
@@ -81,7 +81,7 @@ class AudioManager:
                 "temperature": 0.1
             }
             cleaned_transcript_text = self.modelManager.call_together_api("together", payload)
-            print(f"cleaned_transcript_text: {cleaned_transcript_text}")
+            # print(f"cleaned_transcript_text: {cleaned_transcript_text}")
 
             # Save to SQL
             self.databaseManager.save_to_audio_db(timestamp, audio_filename, cleaned_transcript_text)

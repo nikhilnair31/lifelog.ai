@@ -9,15 +9,18 @@ from app_db import DatabaseManager
 from app_screenshot import ScreenshotManager
 from app_audio import AudioManager
 from app_photo import PhotoManager
+from app_agent import AgentManager
 # endregion
 
 # region Setup
 default_openai_api_key = ''
 default_together_api_key = ''
 default_deepgram_api_key = ''
+
 default_text_model = 'GPT-3.5-Turbo'
 default_image_model = 'GPT'
 default_audio_model = 'Deepgram'
+
 default_interval = 5
 default_downscale_perc = 25
 default_quality_val = 'low'
@@ -46,6 +49,9 @@ audio_model_list = [
 # endregion
 
 # region Primary Related 
+# def agent():
+#     Thread(target=agentManager.agent_summarize).start()
+    
 def start_primary_process():
     print(f'Started!\n')
 
@@ -54,9 +60,10 @@ def start_primary_process():
     screenshot_thread.start()
     photo_thread = Thread(target=photoManager.photo_loop)
     photo_thread.start()
-    # TODO: Add Threads for Audio and LiveSummarizer
     audio_thread = Thread(target=audioManager.audio_loop)
     audio_thread.start()
+    agent_thread = Thread(target=agentManager.agent_loop)
+    agent_thread.start()
 
 def stop_primary_process():
     print(f'Stopped!\n')
@@ -233,22 +240,14 @@ def create_ui():
         command=lambda: stop_primary_process()
     )
     stop_button.grid(row=1, column=0, padx=5, pady=10)
-    api_call_button = tk.Button(
-        frame_button, 
-        text="API Call", 
-        bg=accent_color_100, fg=main_color_1000, borderwidth=0, highlightthickness=0, 
-        width=20, height=2,
-        command=lambda: api_loop()
-    )
-    api_call_button.grid(row=2, column=0, padx=5, pady=10)
-    summarize_button = tk.Button(
-        frame_button, 
-        text="Summarize", 
-        bg=accent_color_100, fg=main_color_1000, borderwidth=0, highlightthickness=0, 
-        width=20, height=2,
-        command=lambda: summarize()
-    )
-    summarize_button.grid(row=3, column=0, padx=5, pady=10)
+    # agent_button = tk.Button(
+    #     frame_button, 
+    #     text="Agent", 
+    #     bg=accent_color_100, fg=main_color_1000, borderwidth=0, highlightthickness=0, 
+    #     width=20, height=2,
+    #     command=lambda: agent()
+    # )
+    # agent_button.grid(row=3, column=0, padx=5, pady=10)
     # endregion
 
     # endregion
@@ -272,6 +271,9 @@ if __name__ == "__main__":
     modelManager = ModelManager(
         default_openai_api_key, default_together_api_key, default_deepgram_api_key,
         default_text_model, default_image_model, default_audio_model
+    )
+    agentManager = AgentManager(
+        controlManager, modelManager, databaseManager, imageManager
     )
     screenshotManager = ScreenshotManager(
         controlManager, modelManager, databaseManager, imageManager

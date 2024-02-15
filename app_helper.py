@@ -203,7 +203,6 @@ class ModelManager:
 
         return response["results"]["channels"][0]["alternatives"][0]["transcript"]
     # TODO: Implement Whisper function
-
 # endregion
 
 # region ImageManager
