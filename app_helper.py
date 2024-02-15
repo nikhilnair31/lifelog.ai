@@ -1,19 +1,24 @@
 import os
 import io
+import json
 import time
 import base64
 import requests
+import threading
 from PIL import Image
+from deepgram import DeepgramClient, PrerecordedOptions, FileSource
 
 # region ControlManager
 class ControlManager:
     def __init__(self):
         self._running = False
+        self.stop_event = threading.Event()
 
     def start(self):
         self._running = True
     def stop(self):
         self._running = False
+        self.stop_event.set()
 
     def is_running(self):
         return self._running
@@ -21,12 +26,14 @@ class ControlManager:
 
 # region ModelManager
 class ModelManager:
-    def __init__(self, default_openai_api_key, default_together_api_key, 
-            default_text_model, default_image_model):
+    def __init__(self, default_openai_api_key, default_together_api_key, default_deepgram_api_key,
+            default_text_model, default_image_model, default_audio_model):
         self.default_openai_api_key = default_openai_api_key
         self.default_together_api_key = default_together_api_key
+        self.default_deepgram_api_key = default_deepgram_api_key
         self.default_text_model = default_text_model
         self.default_image_model = default_image_model
+        self.default_audio_model = default_audio_model
 
     def send_image_to_api(self, image_bytes, system_prompt):
         """Determine which API to call based on the model selection and send the screenshot."""
@@ -158,6 +165,45 @@ class ModelManager:
         print(f'Received response in {elapsed_time:.2f} seconds.')  # Print the elapsed time to two decimal places
         
         return response.json()['choices'][0]['message']['content']
+
+    def send_audio_to_api(self, audio_path):
+        """Determine which API to call based on the model selection and send the screenshot."""
+
+        print(f'Sending Audio to API...')
+        
+        if self.default_audio_model == "Deepgram":
+            response = self.call_deepgram_api(audio_path)
+        elif self.default_audio_model == "Whisper":
+            response = self.call_whisper_api(audio_path)
+        else:
+            print(f"Invalid model selection: {self.default_audio_model}")
+            return None
+        
+        return response
+    def call_deepgram_api(self, audio_path):
+        deepgram = DeepgramClient(self.default_deepgram_api_key)
+        
+        with open(audio_path, "rb") as file:
+            buffer_data = file.read()
+        payload: FileSource = {
+            "buffer": buffer_data,
+        }
+        options = PrerecordedOptions(
+            model="nova-2-general",
+            smart_format=True,
+            diarize=True,
+            dictation=True,
+            filler_words=True,
+            profanity_filter=False,
+            punctuate=True
+            # summarize="v2"
+        )
+
+        response = deepgram.listen.prerecorded.v("1").transcribe_file(payload, options)
+
+        return response["results"]["channels"][0]["alternatives"][0]["transcript"]
+    # TODO: Implement Whisper function
+
 # endregion
 
 # region ImageManager

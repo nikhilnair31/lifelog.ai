@@ -3,8 +3,12 @@ import json
 # region ConfigurationManager
 default_openai_api_key = ''
 default_together_api_key = ''
+default_deepgram_api_key = ''
+
 default_text_model = 'GPT-3.5-Turbo'
 default_image_model = 'GPT'
+default_audio_model = 'Deepgram'
+
 default_downscale_perc = 25
 default_quality_val = 'low'
 default_interval = 5
@@ -22,13 +26,17 @@ class ConfigurationManager:
 
                 default_openai_api_key = config_data.get('default_openai_api_key', '')
                 default_together_api_key = config_data.get('default_together_api_key', '')
+                default_deepgram_api_key = config_data.get('default_deepgram_api_key', '')
+
                 default_text_model = config_data.get('default_text_model', '')
                 default_image_model = config_data.get('default_image_model', '')
+                default_audio_model = config_data.get('default_audio_model', '')
+
                 default_downscale_perc = config_data.get('default_downscale_perc', '')
                 default_quality_val = config_data.get('default_quality_val', '')
                 default_interval = config_data.get('default_interval', '')
 
-            return default_openai_api_key, default_together_api_key, default_text_model, default_image_model, default_downscale_perc, default_quality_val, default_interval
+            return default_openai_api_key, default_together_api_key, default_deepgram_api_key, default_text_model, default_image_model, default_audio_model, default_downscale_perc, default_quality_val, default_interval
 
         except FileNotFoundError:
             print("Config file not found. Creating empty and using defaults.")
@@ -37,18 +45,22 @@ class ConfigurationManager:
                 json.dump({
                     'default_openai_api_key': default_openai_api_key,
                     'default_together_api_key': default_together_api_key,
+                    'default_deepgram_api_key': default_deepgram_api_key,
+
                     'default_text_model': default_text_model,
                     'default_image_model': default_image_model,
+                    'default_audio_model': default_audio_model,
+
                     'default_downscale_perc': default_downscale_perc,
                     'default_quality_val': default_quality_val,
                     'default_interval': default_interval,
                 }, file)
             
-            return default_openai_api_key, default_together_api_key, default_text_model, default_image_model, default_downscale_perc, default_quality_val, default_interval
+            return default_openai_api_key, default_together_api_key, default_text_model, default_image_model, default_audio_model, default_downscale_perc, default_quality_val, default_interval
         
         except Exception as e:
             print("Error loading config file:", e)
-            return default_openai_api_key, default_together_api_key, default_text_model, default_image_model, default_downscale_perc, default_quality_val, default_interval
+            return default_openai_api_key, default_together_api_key, default_text_model, default_image_model, default_audio_model, default_downscale_perc, default_quality_val, default_interval
 
     def save_config(self, key, new_val):
         try:

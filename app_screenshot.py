@@ -91,6 +91,5 @@ class ScreenshotManager:
             # Save to SQL
             self.databaseManager.save_to_screenshot_db(timestamp, image_filename, ocr_text, description_text)
 
-            if not self.controlManager.is_running():
+            if self.controlManager.stop_event.wait(self.default_interval):
                 break
-            time.sleep(self.default_interval)

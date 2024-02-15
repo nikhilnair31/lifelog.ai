@@ -50,8 +50,8 @@ class PhotoManager:
             with open(image_path, 'wb') as f:
                 f.write(downscaled_image_bytes)
 
+            # Save to SQL
             self.databaseManager.save_to_photo_db(timestamp, image_filename, description_text)
 
-            if not self.controlManager.is_running():
+            if self.controlManager.stop_event.wait(self.default_interval):
                 break
-            time.sleep(self.default_interval)

@@ -7,15 +7,18 @@ from app_helper import ControlManager, ModelManager, ImageManager
 from app_config import ConfigurationManager
 from app_db import DatabaseManager
 from app_screenshot import ScreenshotManager
+from app_audio import AudioManager
 from app_photo import PhotoManager
 # endregion
 
 # region Setup
-default_text_model = 'GPT-3.5-Turbo'
-default_image_model = 'GPT'
-default_interval = 5
 default_openai_api_key = ''
 default_together_api_key = ''
+default_deepgram_api_key = ''
+default_text_model = 'GPT-3.5-Turbo'
+default_image_model = 'GPT'
+default_audio_model = 'Deepgram'
+default_interval = 5
 default_downscale_perc = 25
 default_quality_val = 'low'
 
@@ -36,6 +39,10 @@ text_model_list = [
     "OpenHermes-Mistral-7B",
     "openchat/openchat-3.5-1210"
 ]
+audio_model_list = [
+    "Deepgram",
+    "Whisper"
+]
 # endregion
 
 # region Primary Related 
@@ -48,6 +55,8 @@ def start_primary_process():
     photo_thread = Thread(target=photoManager.photo_loop)
     photo_thread.start()
     # TODO: Add Threads for Audio and LiveSummarizer
+    audio_thread = Thread(target=audioManager.audio_loop)
+    audio_thread.start()
 
 def stop_primary_process():
     print(f'Stopped!\n')
@@ -251,7 +260,7 @@ if __name__ == "__main__":
     print(f'Starting EYES...\n')
 
     configManager = ConfigurationManager()
-    default_openai_api_key, default_together_api_key, default_text_model, default_image_model, default_downscale_perc, default_quality_val, default_interval = configManager.load_config()
+    default_openai_api_key, default_together_api_key, default_deepgram_api_key, default_text_model, default_image_model, default_audio_model, default_downscale_perc, default_quality_val, default_interval = configManager.load_config()
 
     controlManager = ControlManager()
     imageManager = ImageManager(
@@ -261,13 +270,16 @@ if __name__ == "__main__":
         
     )
     modelManager = ModelManager(
-        default_openai_api_key, default_together_api_key,
-        default_text_model, default_image_model
+        default_openai_api_key, default_together_api_key, default_deepgram_api_key,
+        default_text_model, default_image_model, default_audio_model
     )
     screenshotManager = ScreenshotManager(
         controlManager, modelManager, databaseManager, imageManager
     )
     photoManager = PhotoManager(
+        controlManager, modelManager, databaseManager, imageManager
+    )
+    audioManager = AudioManager(
         controlManager, modelManager, databaseManager, imageManager
     )
 

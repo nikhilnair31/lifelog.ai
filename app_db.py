@@ -3,7 +3,7 @@ import sqlite3
 
 # region DatabaseManager
 class DatabaseManager:
-    def __init__(self, sql_folder_path):
+    def __init__(self):
         self.db_path = 'data/sql/data.db'
         self.sql_folder_path = 'data/sql/'
 
@@ -53,6 +53,17 @@ class DatabaseManager:
         conn = sqlite3.connect(self.db_path)
         c = conn.cursor()
         c.execute("INSERT INTO photos VALUES (?, ?, ?)", (timestamp, image_path, description_text))
+        conn.commit()
+        conn.close()
+
+        print(f'Saved!\n')
+
+    def save_to_audio_db(self, timestamp, audio_path, transcript_text):
+        print(f'Saving to Audio DB...')
+
+        conn = sqlite3.connect(self.db_path)
+        c = conn.cursor()
+        c.execute("INSERT INTO audio VALUES (?, ?, ?)", (timestamp, audio_path, transcript_text))
         conn.commit()
         conn.close()
 
