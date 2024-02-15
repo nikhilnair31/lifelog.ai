@@ -40,12 +40,12 @@ class AgentManager:
             "max_tokens": 256,
             "temperature": 0.1
         }
-        print(f'payload\n{payload}')
+        # print(f'payload\n{payload}')
         summarize_text = self.modelManager.call_together_api("gpt", payload)
-        print(f'Summary\n{summarize_text}')
+        # print(f'Summary\n{summarize_text}')
 
         # Save to SQL
-        self.databaseManager.save_to_summary_db(timestamp, to_timestamp, timestamp, self.model_name, summarize_text)
+        self.databaseManager.save_to_summary_db(timestamp, to_timestamp, timestamp, str(payload), summarize_text)
         
     def agent_loop(self):
         print(f'Agent Loop\n')

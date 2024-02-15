@@ -29,7 +29,7 @@ class DatabaseManager:
         ''')
         c.execute('''
         CREATE TABLE IF NOT EXISTS summary
-        (timestamp TEXT, from_timestamp TEXT, to_timestamp TEXT, model_name TEXT, content_text TEXT)
+        (timestamp TEXT, from_timestamp TEXT, to_timestamp TEXT, payload TEXT, content_text TEXT)
         ''')
         conn.commit()
         conn.close()
@@ -66,12 +66,12 @@ class DatabaseManager:
         conn.close()
 
         print(f'Saved!\n')
-    def save_to_summary_db(self, timestamp, from_timestamp, to_timestamp, model_name, content_text):
+    def save_to_summary_db(self, timestamp, from_timestamp, to_timestamp, payload, content_text):
         print(f'Saving to Summary DB...')
 
         conn = sqlite3.connect(self.db_path)
         c = conn.cursor()
-        c.execute("INSERT INTO summary VALUES (?, ?, ?, ?, ?)", (timestamp, from_timestamp, to_timestamp, model_name, content_text))
+        c.execute("INSERT INTO summary VALUES (?, ?, ?, ?, ?)", (timestamp, from_timestamp, to_timestamp, payload, content_text))
         conn.commit()
         conn.close()
 
