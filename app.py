@@ -11,12 +11,6 @@ from app_photo import PhotoManager
 # endregion
 
 # region Setup
-photos_folder_path = 'data/photos/'
-screenshots_folder_path = 'data/screenshots/'
-sql_folder_path = 'data/sql/'
-
-db_path = 'data/sql/data.db'
-
 default_text_model = 'GPT-3.5-Turbo'
 default_image_model = 'GPT'
 default_interval = 5
@@ -24,7 +18,6 @@ default_openai_api_key = ''
 default_together_api_key = ''
 default_downscale_perc = 25
 default_quality_val = 'low'
-default_system_prompt = "What do you see? Be precise. You have the screenshots of my screen! Tell what you see on the screen and text you see in details! It can be rick and morty series, terminal, twitter, vs code, and other! answer with cool details! Answer in 20 words max! Make a story about my screenshot day out of it! If you can't see make best guess!"
 
 image_quality_level_list = [
     "auto", "low", "high"
@@ -54,6 +47,7 @@ def start_primary_process():
     screenshot_thread.start()
     photo_thread = Thread(target=photoManager.photo_loop)
     photo_thread.start()
+    # TODO: Add Threads for Audio and LiveSummarizer
 
 def stop_primary_process():
     print(f'Stopped!\n')
@@ -264,7 +258,7 @@ if __name__ == "__main__":
 
     )
     databaseManager = DatabaseManager(
-        db_path, sql_folder_path
+        
     )
     modelManager = ModelManager(
         default_openai_api_key, default_together_api_key,

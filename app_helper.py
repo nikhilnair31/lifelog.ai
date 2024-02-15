@@ -1,11 +1,9 @@
-# region Packages
 import os
 import io
 import time
 import base64
 import requests
 from PIL import Image
-# endregion
 
 # region ControlManager
 class ControlManager:
@@ -14,7 +12,6 @@ class ControlManager:
 
     def start(self):
         self._running = True
-
     def stop(self):
         self._running = False
 

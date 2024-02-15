@@ -9,6 +9,7 @@ default_downscale_perc = 25
 default_quality_val = 'low'
 default_interval = 5
 
+# FIXME: Update to make user's UI changes reflect here 
 class ConfigurationManager:
     def __init__(self):
         self.config_file = 'config.json'

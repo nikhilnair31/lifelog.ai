@@ -3,9 +3,9 @@ import sqlite3
 
 # region DatabaseManager
 class DatabaseManager:
-    def __init__(self, db_path, sql_folder_path):
-        self.db_path = db_path
-        self.sql_folder_path = sql_folder_path
+    def __init__(self, sql_folder_path):
+        self.db_path = 'data/sql/data.db'
+        self.sql_folder_path = 'data/sql/'
 
     def initialize_db(self):
         print(f'Initializing DB...')
