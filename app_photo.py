@@ -13,7 +13,7 @@ class PhotoManager:
         self.imageManager = imageManager
 
         self.photos_folder_path = 'data/photos/'
-        self.default_interval = 120
+        self.default_interval = 7
         self.default_downscale_perc = 25
         self.default_system_prompt = "What do you see?"
         self.cap = None

@@ -190,13 +190,13 @@ class ModelManager:
             "buffer": buffer_data,
         }
         options = PrerecordedOptions(
-            model="nova-2-general",
-            smart_format=True,
-            diarize=True,
-            dictation=True,
-            filler_words=True,
-            profanity_filter=False,
-            punctuate=True
+            model="nova-2-general"
+            # smart_format=True,
+            # diarize=True,
+            # dictation=True,
+            # filler_words=True,
+            # profanity_filter=False,
+            # punctuate=True
             # summarize="v2"
         )
 

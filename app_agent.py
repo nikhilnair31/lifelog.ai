@@ -12,20 +12,30 @@ class AgentManager:
         self.default_interval = 60
 
         self.model_name = "gpt-3.5-turbo-0125"
-        self.default_system_prompt = "You have the descriptions of my desktop's screenshot, the descriptions of my webcam images and the transcripts of my desktop's audio. Summarize with cool details. Be precise."
+        self.default_system_prompt = """
+            You are the user's helper who is inside their desktop.
+            You are provided the following:
+            - A running summary of the user's activity
+            - Descriptions of their desktop's screenshot
+            - Descriptions of their webcam's images 
+            - Transcripts of their desktop's audio
+            Summarize with cool details. Be precise.
+        """
     
-    # FIXME: Currently just summarize b/w from-to timestamps but ideally should be building onto the previous summary
-    def agent_summarize(self):
+    def agent_live_summarizer(self):
         print(f'Agent Loop\n')
 
         timestamp = time.strftime('%Y-%m-%d %H:%M:%S')
-        to_timestamp, screenshots_description_text_rows, photos_description_text_rows, audio_transcript_text_rows = self.databaseManager.retrieve_contents_for_livesummary(timestamp)
-        
+        to_timestamp, screenshots_description_text_rows, photos_description_text_rows, audio_transcript_text_rows = self.databaseManager.retrieve_all_sources_text_content_for_livesummary(timestamp)
+        last_summary = self.databaseManager.retrieve_last_summary_for_livesummary()
+
         screenshots_description_text = '\n'.join(screenshots_description_text_rows)
         photos_description_text = '\n'.join(photos_description_text_rows)
         audio_transcript_text = '\n'.join(audio_transcript_text_rows)
+
+        default_user_prompt = f"Running Summary:\n{last_summary}\nScreenshots Descriptions:\n{screenshots_description_text}\nPhotos Descriptions:\n{photos_description_text}\nAudio Transcripts:\n{audio_transcript_text}"
         
-        # Pass OCR through LLM
+        # Take all text and summarize
         payload = {
             "model": self.model_name,
             "messages": [
@@ -35,15 +45,13 @@ class AgentManager:
                 },
                 {
                     "role": "user",
-                    "content": f"Screenshots Descriptions:\n{screenshots_description_text}\nPhotos Descriptions:\n{photos_description_text}\nAudio Transcripts:\n{audio_transcript_text}"
+                    "content": default_user_prompt
                 }
             ],
             "max_tokens": 256,
             "temperature": 0.1
         }
-        # print(f'payload\n{payload}')
         summarize_text = self.modelManager.call_together_api("gpt", payload)
-        # print(f'Summary\n{summarize_text}')
 
         # Save to SQL
         self.databaseManager.save_to_summary_db(timestamp, to_timestamp, timestamp, str(payload), summarize_text)
@@ -54,7 +62,7 @@ class AgentManager:
         while self.controlManager.is_running():        
             print(f'Running Agent Loop')
             
-            self.agent_summarize()
+            self.agent_live_summarizer()
             
             if self.controlManager.stop_event.wait(self.default_interval):
                 break

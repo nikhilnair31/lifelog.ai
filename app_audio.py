@@ -12,7 +12,7 @@ class AudioManager:
         self.imageManager = imageManager
 
         self.audio_folder_path = 'data/audios/'
-        self.default_duration = 5
+        self.default_duration = 10
         self.audio_format = pyaudio.paInt16
         self.mia_channels = 2
         self.frame_length = 1024

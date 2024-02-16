@@ -102,7 +102,7 @@ class DatabaseManager:
 
         return [row[0] for row in rows]
     
-    def retrieve_contents_for_livesummary(self, current_timestamp):
+    def retrieve_all_sources_text_content_for_livesummary(self, current_timestamp):
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
 
@@ -142,6 +142,18 @@ class DatabaseManager:
         audio_transcript_text_rows = [row[0] for row in audio_transcript_text_rows]
 
         return to_timestamp, screenshots_description_text_rows, photos_description_text_rows, audio_transcript_text_rows
+    def retrieve_last_summary_for_livesummary(self):
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+
+        # Check if the summary table is empty
+        cursor.execute("SELECT content_text FROM summary ORDER BY timestamp DESC LIMIT 1")
+        last_summary_rows = cursor.fetchall()[0]
+
+        conn.commit()
+        conn.close()
+
+        return [row[0] for row in last_summary_rows]
 
     def update_api_response(self, table_name, filepath, response, content):
         print(f'Updating {table_name}...')
