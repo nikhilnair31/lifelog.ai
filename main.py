@@ -348,7 +348,6 @@ def photo_loop():
             break
         time.sleep(default_interval)
 
-# FIXME: Simplify async/thread logic
 def api_loop():
     global NUM_THREADS, photos_folder_path, screenshots_folder_path
 

@@ -14,6 +14,7 @@ class AgentManager:
         self.model_name = "gpt-3.5-turbo-0125"
         self.default_system_prompt = "You have the descriptions of my desktop's screenshot, the descriptions of my webcam images and the transcripts of my desktop's audio. Summarize with cool details. Be precise."
     
+    # FIXME: Currently just summarize b/w from-to timestamps but ideally should be building onto the previous summary
     def agent_summarize(self):
         print(f'Agent Loop\n')
 

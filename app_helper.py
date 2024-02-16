@@ -6,6 +6,7 @@ import base64
 import requests
 import threading
 from PIL import Image
+from openai import OpenAI
 from deepgram import DeepgramClient, PrerecordedOptions, FileSource
 
 # region ControlManager
@@ -202,7 +203,16 @@ class ModelManager:
         response = deepgram.listen.prerecorded.v("1").transcribe_file(payload, options)
 
         return response["results"]["channels"][0]["alternatives"][0]["transcript"]
-    # TODO: Implement Whisper function
+    def call_whisper_api(self, audio_path):
+        client = OpenAI(self.default_openai_api_key)
+
+        audio_file= open(audio_path, "rb")
+        response = client.audio.transcriptions.create(
+            model="whisper-1", 
+            file=audio_file
+        )
+
+        return response["text"]
 # endregion
 
 # region ImageManager
