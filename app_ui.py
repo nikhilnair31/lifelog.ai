@@ -3,28 +3,29 @@ from tkinter import ttk
 import sv_ttk
 
 class UIManager:
-    def __init__(self, configManager, controlManager, image_model_list, text_model_list, audio_model_list, image_quality_list):
+    def __init__(self, configManager, controlManager):
         self.configManager = configManager
         self.controlManager = controlManager
-        self.image_model_list = image_model_list
-        self.text_model_list = text_model_list 
-        self.audio_model_list = audio_model_list
-        self.image_quality_list = image_quality_list
+
+        self.image_model_list = self.configManager.get_config("image_model_list")
+        self.text_model_list = self.configManager.get_config("text_model_list") 
+        self.audio_model_list = self.configManager.get_config("audio_model_list")
+        self.image_quality_list = self.configManager.get_config("image_quality_list")
 
         self.agent_elements = {
             "LIVE SUMMARY SETTINGS": [
                 {"type": "label", "text": "LOOP TIME IN MIN"},
-                {"type": "slider", "from": 0, "to": 60, "orient": tk.HORIZONTAL, "command": self.scale_changed},
+                {"type": "slider", "from": 0, "to": 60, "orient": tk.HORIZONTAL, "key": "agent_livesummary_loop_time_in_min"},
                 {"type": "label", "text": "TEXT MODEL"},
                 {"type": "combobox", "values": self.text_model_list , "key": "agent_livesummary_text_model"},
-                {"type": "checkbutton", "text": "ENABLED", "command": self.checkbutton_clicked}
+                {"type": "checkbutton", "text": "ENABLED", "key": "agent_livesummary_enabled"}
             ],
             "FEATURE #2 SETTINGS": [
                 {"type": "label", "text": "LOOP TIME IN MIN"},
-                {"type": "slider", "from": 0, "to": 60, "orient": tk.HORIZONTAL, "command": self.scale_changed},
+                {"type": "slider", "from": 0, "to": 60, "orient": tk.HORIZONTAL, "key": "agent_feature2_loop_time_in_min"},
                 {"type": "label", "text": "TEXT MODEL"},
-                {"type": "combobox", "values": self.text_model_list , "key": "agent_livesummary_text_model"},
-                {"type": "checkbutton", "text": "ENABLED", "command": self.checkbutton_clicked}
+                {"type": "combobox", "values": self.text_model_list , "key": "agent_feature2_text_model"},
+                {"type": "checkbutton", "text": "ENABLED", "key": "agent_feature2_enabled"}
             ],
         }
         self.all_elements = {
@@ -38,37 +39,37 @@ class UIManager:
             ],
             "SCREENSHOT SETTINGS": [
                 {"type": "label", "text": "LOOP TIME IN MIN"},
-                {"type": "slider", "from": 0, "to": 60, "orient": tk.HORIZONTAL, "command": self.scale_changed},
+                {"type": "slider", "from": 0, "to": 60, "orient": tk.HORIZONTAL, "key": "screenshot_loop_time_in_min"},
                 {"type": "label", "text": "TEXT MODEL"},
                 {"type": "combobox", "values": self.text_model_list , "key": "screenshot_text_model"},
                 {"type": "label", "text": "COMPRESSION %"},
-                {"type": "slider", "from": 0, "to": 100, "orient": tk.HORIZONTAL, "command": self.scale_changed},
-                {"type": "checkbutton", "text": "ENABLED", "command": self.checkbutton_clicked}
+                {"type": "slider", "from": 0, "to": 100, "orient": tk.HORIZONTAL, "key": "screenshot_compression_perc"},
+                {"type": "checkbutton", "text": "ENABLED", "key": "screenshot_enabled"}
             ],
             "PHOTO SETTINGS": [
                 {"type": "label", "text": "LOOP TIME IN MIN"},
-                {"type": "slider", "from": 0, "to": 60, "orient": tk.HORIZONTAL, "command": self.scale_changed},
+                {"type": "slider", "from": 0, "to": 60, "orient": tk.HORIZONTAL, "key": "photo_loop_time_in_min"},
                 {"type": "label", "text": "VISION MODEL"},
                 {"type": "combobox", "values": self.text_model_list , "key": "photo_image_model"},
                 {"type": "label", "text": "MODEL IMAGE QUALITY"},
                 {"type": "combobox", "values": self.image_quality_list, "key": "photo_image_quality_val"},
                 {"type": "label", "text": "COMPRESSION %"},
-                {"type": "slider", "from": 0, "to": 100, "orient": tk.HORIZONTAL, "command": self.scale_changed},
-                {"type": "checkbutton", "text": "ENABLED", "command": self.checkbutton_clicked}
+                {"type": "slider", "from": 0, "to": 100, "orient": tk.HORIZONTAL, "key": "photo_compression_perc"},
+                {"type": "checkbutton", "text": "ENABLED", "key": "photo_enabled"}
             ],
             "AUDIO SETTINGS": [
                 {"type": "label", "text": "LOOP TIME IN MIN"},
-                {"type": "slider", "from": 0, "to": 60, "orient": tk.HORIZONTAL, "command": self.scale_changed},
+                {"type": "slider", "from": 0, "to": 60, "orient": tk.HORIZONTAL, "key": "audio_loop_time_in_min"},
                 {"type": "label", "text": "AUDIO MODEL"},
                 {"type": "combobox", "values": self.audio_model_list, "key": "audio_audio_model"},
                 {"type": "label", "text": "COMPRESSION %"},
-                {"type": "slider", "from": 0, "to": 100, "orient": tk.HORIZONTAL, "command": self.scale_changed},
-                {"type": "checkbutton", "text": "ENABLED", "command": self.checkbutton_clicked}
+                {"type": "slider", "from": 0, "to": 100, "orient": tk.HORIZONTAL, "key": "audio_compression_perc"},
+                {"type": "checkbutton", "text": "ENABLED", "key": "audio_enabled"}
             ],
             "AGENT SETTINGS": [
-                {"type": "checkbutton", "text": "LIVE SUMMARY", "command": self.checkbutton_clicked},
+                {"type": "checkbutton", "text": "LIVE SUMMARY", "key": "agent_livesummary_enabled"},
                 {"type": "button", "text": "Open New Window", "command": lambda: self.open_new_window("LIVE SUMMARY SETTINGS")},
-                {"type": "checkbutton", "text": "FEATURE #2", "command": self.checkbutton_clicked},
+                {"type": "checkbutton", "text": "FEATURE #2", "key": "agent_feature2_enabled"},
                 {"type": "button", "text": "Open New Window", "command": lambda: self.open_new_window("FEATURE #2 SETTINGS")},
             ],
         }
@@ -107,39 +108,47 @@ class UIManager:
             if element["type"] == "label":
                 label = ttk.Label(frame, text=element["text"])
                 label.pack(fill=tk.X, padx=5, pady=5)
+            elif element["type"] == "button":
+                button = ttk.Button(frame, text=element["text"], command=element["command"])
+                button.pack(fill=tk.X, padx=5, pady=5)
+            
             elif element["type"] == "entry":
                 default_value = self.configManager.get_config(element["key"])
+
                 entry = ttk.Entry(frame)
                 entry.pack(fill=tk.X, padx=5, pady=5)
                 entry.insert(0, default_value)
                 entry.bind("<Return>", lambda event, key=element["key"]: self.entry_enter(event, key))
                 entry.bind('<FocusOut>', lambda event, key=element["key"]: self.entry_enter(event, key))
             elif element["type"] == "checkbutton":
-                var = tk.BooleanVar(value=element.get("default_value", False))
-                checkbutton = ttk.Checkbutton(frame, text=element["text"], variable=var, onvalue=False, offvalue=True)
+                default_bool_value = self.configManager.get_config(element["key"])
+                var = tk.BooleanVar(value=default_bool_value)
+
+                checkbutton = ttk.Checkbutton(frame, text=element["text"], variable=var, onvalue=True, offvalue=False)
+                checkbutton.var = var 
                 checkbutton.pack(fill=tk.X, padx=5, pady=5)
-                checkbutton.var = var
-                checkbutton.bind("<Button-1>", element.get("command"))
+                checkbutton.bind("<Button-1>", lambda event, key=element["key"]: self.checkbutton_clicked(event, key))
             elif element["type"] == "combobox":
                 default_value = self.configManager.get_config(element["key"])
+
                 combobox = ttk.Combobox(frame, values=element["values"])
                 combobox.set(default_value) 
                 combobox.pack(fill=tk.X, padx=5, pady=5)
                 combobox.bind("<<ComboboxSelected>>", lambda event, key=element["key"]: self.combobox_selected(event, key))
             elif element["type"] == "slider":
+                default_value = self.configManager.get_config(element["key"])
+
                 slider_frame = ttk.Frame(frame)
                 slider_frame.pack(fill=tk.X, expand=True)
                 
-                value_label = ttk.Label(slider_frame, text=str(element["from"]))
+                value_label = ttk.Label(slider_frame, text=str(default_value))
                 value_label.pack(side=tk.RIGHT, padx=(10, 0))
 
                 slider = ttk.Scale(slider_frame, from_=element["from"], to=element["to"], orient=element["orient"])
                 slider.pack(fill=tk.X)
+                slider.set(default_value) 
                 
-                slider.bind("<ButtonRelease-1>", lambda event, label=value_label: self.scale_changed(event, label))
-            elif element["type"] == "button":
-                button = ttk.Button(frame, text=element["text"], command=element["command"])
-                button.pack(fill=tk.X, padx=5, pady=5)
+                slider.bind("<ButtonRelease-1>", lambda event, label=value_label, key=element["key"]: self.scale_changed(event, label, key))
         
         return frame
     
@@ -166,15 +175,17 @@ class UIManager:
         entry_new_val = event.widget.get()
         self.configManager.save_config(key, entry_new_val)
         print(f"Combobox selected\n{key} - {entry_new_val}")
-    def checkbutton_clicked(self, event):
-        if isinstance(event.widget, ttk.Checkbutton):
-            var = event.widget.var
-            print("Checkbutton clicked:", var.get())
-    def scale_changed(self, event, value_label):
+    def checkbutton_clicked(self, event, key):
+        var = event.widget.var
+        entry_new_val = not var.get()
+        self.configManager.save_config(key, entry_new_val)
+        print(f"Checkbutton selected\n{key} - {entry_new_val}")
+    def scale_changed(self, event, value_label, key):
         slider = event.widget
-        value = int(slider.get())  # Round the float value to an integer
-        print("Scale changed:", value)
+        value = int(slider.get())
         value_label.config(text=str(value))
+        self.configManager.save_config(key, value)
+        print("Scale changed:", value)
 
     def open_new_window(self, window_title):
         new_window = tk.Toplevel(self.root)

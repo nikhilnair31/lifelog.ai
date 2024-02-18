@@ -1,4 +1,3 @@
-# region Packages
 import tkinter as tk
 from tkinter import ttk
 from threading import Thread
@@ -11,28 +10,6 @@ from app_audio import AudioManager
 from app_photo import PhotoManager
 from app_agent import AgentManager
 from app_ui import UIManager
-# endregion
-
-# region Setup
-image_model_list = [
-    "gpt-4-turbo-preview", 
-    "moondream"
-]
-text_model_list = [
-    "gpt-3.5-turbo", 
-    "gpt-4-turbo",
-    "mistralai/Mixtral-8x7B-Instruct-v0.1",
-    "teknium/OpenHermes-2p5-Mistral-7B",
-    "openchat/openchat-3.5-1210"
-]
-audio_model_list = [
-    "deepgram",
-    "whisper"
-]
-image_quality_list = [
-    "auto", "high", "low"
-]
-# endregion
 
 # region Primary Related
 def start_primary_process():
@@ -83,7 +60,6 @@ if __name__ == "__main__":
     )
 
     app = UIManager(
-        configManager, controlManager,
-        image_model_list, text_model_list, audio_model_list, image_quality_list
+        configManager, controlManager
     )
     app.run()
