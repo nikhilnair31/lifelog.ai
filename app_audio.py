@@ -82,7 +82,7 @@ class AudioManager:
                 "max_tokens": 300,
                 "temperature": 0.1
             }
-            description_text = self.modelManager.send_text_to_together_api("together", payload)
+            description_text = self.modelManager.send_text_to_together_api(payload)
 
             # Save to SQL
             self.databaseManager.save_to_audio_db(timestamp, audio_filename, transcript_text, description_text)

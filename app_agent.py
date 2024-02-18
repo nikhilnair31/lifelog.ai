@@ -24,15 +24,17 @@ class AgentManager:
         """
     
     def agent_live_summarizer(self):
-        print(f'Agent Loop\n')
+        print(f'Live Summarizer\n')
 
         timestamp = time.strftime('%Y-%m-%d %H:%M:%S')
         to_timestamp, screenshots_description_text_rows, photos_description_text_rows, audio_transcript_text_rows = self.databaseManager.retrieve_all_sources_text_content_for_livesummary(timestamp)
         last_summary = self.databaseManager.retrieve_last_summary_for_livesummary()
 
-        screenshots_description_text = '\n'.join(screenshots_description_text_rows)
-        photos_description_text = '\n'.join(photos_description_text_rows)
-        audio_transcript_text = '\n'.join(audio_transcript_text_rows)
+        # FIXME: Figure out how to improve this
+        len_filter = 100
+        screenshots_description_text = '\n'.join(screenshots_description_text_rows[:len_filter])
+        photos_description_text = '\n'.join(photos_description_text_rows[:len_filter])
+        audio_transcript_text = '\n'.join(audio_transcript_text_rows[:len_filter])
 
         default_user_prompt = f"Running Summary:\n{last_summary}\nScreenshots Descriptions:\n{screenshots_description_text}\nPhotos Descriptions:\n{photos_description_text}\nAudio Transcripts:\n{audio_transcript_text}"
         
@@ -52,7 +54,8 @@ class AgentManager:
             "max_tokens": 256,
             "temperature": 0.1
         }
-        summarize_text = self.modelManager.send_text_to_together_api("gpt", payload)
+        print(f"payload: {payload}")
+        summarize_text = self.modelManager.send_text_to_together_api(payload)
 
         # Save to SQL
         self.databaseManager.save_to_summary_db(timestamp, to_timestamp, timestamp, str(payload), summarize_text)

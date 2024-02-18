@@ -120,14 +120,15 @@ class ModelManager:
             # Optionally delete the temp file if not needed anymore
             os.unlink(tmpfile_path)
 
-    def send_text_to_together_api(self, source, payload):
+    def send_text_to_together_api(self, payload):
         """Send the contents to the API and return the response."""
 
         print(f'Calling Together API...')
         
         start_time = time.time()
         
-        if source == "gpt":
+        model_name = payload["model"]
+        if "gpt" in model_name:
             url = "https://api.openai.com/v1/chat/completions"
             api_key = self.openai_api_key
         else:
@@ -140,7 +141,7 @@ class ModelManager:
         }
         
         response = requests.post(url, headers=headers, json=payload)
-        # print(response.json())
+        print(response.json())
         
         elapsed_time = time.time() - start_time  # Calculate elapsed time
         print(f'Received response in {elapsed_time:.2f} seconds.')  # Print the elapsed time to two decimal places
