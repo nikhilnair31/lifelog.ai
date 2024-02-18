@@ -27,14 +27,14 @@ class ControlManager:
 
 # region ModelManager
 class ModelManager:
-    def __init__(self, default_openai_api_key, default_together_api_key, default_deepgram_api_key,
-            default_text_model, default_image_model, default_audio_model):
-        self.default_openai_api_key = default_openai_api_key
-        self.default_together_api_key = default_together_api_key
-        self.default_deepgram_api_key = default_deepgram_api_key
-        self.default_text_model = default_text_model
-        self.default_image_model = default_image_model
-        self.default_audio_model = default_audio_model
+    def __init__(self, configManager):
+        self.configManager = configManager
+
+        self.together_api_key = self.configManager.get_config("together_api_key")
+        self.deepgram_api_key = self.configManager.get_config("deepgram_api_key")
+        self.default_text_model = self.configManager.get_config("default_text_model")
+        self.default_image_model = self.configManager.get_config("default_image_model")
+        self.default_audio_model = self.configManager.get_config("default_audio_model")
 
     def send_image_to_api(self, image_bytes, system_prompt):
         """Determine which API to call based on the model selection and send the screenshot."""
@@ -60,7 +60,7 @@ class ModelManager:
 
         headers = {
             "Content-Type": "application/json",
-            "Authorization": f"Bearer {self.default_openai_api_key}"
+            "Authorization": f"Bearer {self.openai_api_key}"
         }
         payload = {
             "model": "gpt-4-vision-preview",
@@ -149,10 +149,10 @@ class ModelManager:
         
         if source == "gpt":
             url = "https://api.openai.com/v1/chat/completions"
-            api_key = self.default_openai_api_key
+            api_key = self.openai_api_key
         else:
             url = "https://api.together.xyz/v1/chat/completions"
-            api_key = self.default_together_api_key
+            api_key = self.together_api_key
 
         headers = {
             "Content-Type": "application/json",
@@ -182,7 +182,7 @@ class ModelManager:
         
         return response
     def call_deepgram_api(self, audio_path):
-        deepgram = DeepgramClient(self.default_deepgram_api_key)
+        deepgram = DeepgramClient(self.deepgram_api_key)
         
         with open(audio_path, "rb") as file:
             buffer_data = file.read()
@@ -204,7 +204,7 @@ class ModelManager:
 
         return response["results"]["channels"][0]["alternatives"][0]["transcript"]
     def call_whisper_api(self, audio_path):
-        client = OpenAI(self.default_openai_api_key)
+        client = OpenAI(self.openai_api_key)
 
         audio_file= open(audio_path, "rb")
         response = client.audio.transcriptions.create(

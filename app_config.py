@@ -1,78 +1,56 @@
 import json
 
 # region ConfigurationManager
-default_openai_api_key = ''
-default_together_api_key = ''
-default_deepgram_api_key = ''
-
-default_text_model = 'GPT-3.5-Turbo'
-default_image_model = 'GPT'
-default_audio_model = 'Deepgram'
-
-default_downscale_perc = 25
-default_quality_val = 'low'
-default_interval = 5
-
-# FIXME: Update to make user's UI changes reflect here 
 class ConfigurationManager:
     def __init__(self):
         self.config_file = 'config.json'
+        self.config_data = {}
+        self.load_config()
 
     def load_config(self):
         try:
             with open(self.config_file, 'r') as file:
-                config_data = json.load(file)
-                print(f"Config File Contents\n{config_data}\n")
-
-                default_openai_api_key = config_data.get('default_openai_api_key', '')
-                default_together_api_key = config_data.get('default_together_api_key', '')
-                default_deepgram_api_key = config_data.get('default_deepgram_api_key', '')
-
-                default_text_model = config_data.get('default_text_model', '')
-                default_image_model = config_data.get('default_image_model', '')
-                default_audio_model = config_data.get('default_audio_model', '')
-
-                default_downscale_perc = config_data.get('default_downscale_perc', '')
-                default_quality_val = config_data.get('default_quality_val', '')
-                default_interval = config_data.get('default_interval', '')
-
-            return default_openai_api_key, default_together_api_key, default_deepgram_api_key, default_text_model, default_image_model, default_audio_model, default_downscale_perc, default_quality_val, default_interval
-
+                self.config_data = json.load(file)
         except FileNotFoundError:
-            print("Config file not found. Creating empty and using defaults.")
-            
-            with open(self.config_file, 'w') as file:
-                json.dump({
-                    'default_openai_api_key': default_openai_api_key,
-                    'default_together_api_key': default_together_api_key,
-                    'default_deepgram_api_key': default_deepgram_api_key,
+            self.config_data = {
+                'openai_api_key': '',
+                'together_api_key': '',
+                'deepgram_api_key': '',
 
-                    'default_text_model': default_text_model,
-                    'default_image_model': default_image_model,
-                    'default_audio_model': default_audio_model,
+                "screenshot_loop_time_in_min": 2,
+                "screenshot_text_model": "openchat/openchat-3.5-1210",
+                "screenshot_compression_perc": 25,
+                "screenshot_enabled": true,
+                
+                "photo_loop_time_in_min": 20,
+                "photo_image_model": "gpt-4-turbo-preview",
+                "photo_image_quality_val": "low",
+                "photo_compression_perc": 25,
+                "photo_enabled": true,
 
-                    'default_downscale_perc': default_downscale_perc,
-                    'default_quality_val': default_quality_val,
-                    'default_interval': default_interval,
-                }, file)
-            
-            return default_openai_api_key, default_together_api_key, default_text_model, default_image_model, default_audio_model, default_downscale_perc, default_quality_val, default_interval
-        
+                "audio_loop_time_in_min": 5,
+                "audio_audio_model": "deepgram",
+                "audio_compression_perc": 25,
+                "audio_enabled": true,
+
+                "agent_livesummary_loop_time_in_min": 10,
+                "agent_livesummary_text_model": "gpt-3.5-turbo"
+            }
+            self.save_all_config()  # Save defaults if file not found
         except Exception as e:
             print("Error loading config file:", e)
-            return default_openai_api_key, default_together_api_key, default_text_model, default_image_model, default_audio_model, default_downscale_perc, default_quality_val, default_interval
+
+    def get_config(self, key):
+        return self.config_data.get(key)
 
     def save_config(self, key, new_val):
+        self.config_data[key] = new_val
+        self.save_all_config()
+
+    def save_all_config(self):
         try:
-            # Open config file and load it into a dict
-            with open(self.config_file, 'r') as file:
-                config_data = json.load(file)
-            # Update dict's value by key
-            config_data[key] = new_val
-            # Rewrite dict into config file
             with open(self.config_file, 'w') as outfile:
-                json.dump(config_data, outfile)
-        
+                json.dump(self.config_data, outfile)
         except Exception as e:
             print("Error saving config file:", e)
 # endregion
