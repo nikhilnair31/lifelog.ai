@@ -13,7 +13,7 @@ class PhotoManager:
         self.imageManager = imageManager
 
         self.photos_folder_path = 'data/photos/'
-        self.default_interval = 7
+        self.default_interval = 20 * 60
         self.default_downscale_perc = 25
         self.default_system_prompt = "What do you see?"
         self.cap = None
@@ -21,8 +21,20 @@ class PhotoManager:
     def take_photo(self):
         if self.cap is None:
             self.cap = cv2.VideoCapture(0)
+            time.sleep(2)
+        
         ret, frame = self.cap.read()
-        _, img_encoded = cv2.imencode('.jpeg', frame)
+        
+        # Check if the frame was successfully captured
+        if not ret or frame is None:
+            print("Failed to capture frame")
+            return None
+
+        ret, img_encoded = cv2.imencode('.jpeg', frame)
+        if not ret:
+            print("Failed to encode frame")
+            return None  # or handle the error as needed
+
         return img_encoded.tobytes()
     
     def photo_loop(self):

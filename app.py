@@ -10,6 +10,7 @@ from app_screenshot import ScreenshotManager
 from app_audio import AudioManager
 from app_photo import PhotoManager
 from app_agent import AgentManager
+from app_ui import UIManager
 # endregion
 
 # region Setup
@@ -273,7 +274,11 @@ if __name__ == "__main__":
     audioManager = AudioManager(
         controlManager, modelManager, databaseManager, imageManager
     )
+    app = UIManager(
+        
+    )
 
     databaseManager.initialize_db()
     
-    create_ui()
+    # create_ui()
+    app.run()

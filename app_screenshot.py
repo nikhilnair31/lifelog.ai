@@ -16,7 +16,7 @@ class ScreenshotManager:
         self.imageManager = imageManager
 
         self.screenshots_folder_path = 'data/screenshots/'
-        self.default_interval = 5
+        self.default_interval = 2 * 60
         self.default_downscale_perc = 25
         self.default_system_prompt = "What do you see? Be precise. You have the OCR text contents of my Windows desktop screenshots. Tell what you see on the screen and text you see in details. It can be a youtube video, rick and morty series, terminal, twitter, vs code, and many others. answer with cool details. If you can't see make best guess."
 

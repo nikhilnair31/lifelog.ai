@@ -9,7 +9,7 @@ class AgentManager:
         self.databaseManager = databaseManager
         self.imageManager = imageManager
 
-        self.default_interval = 60
+        self.default_interval = 5 * 60
 
         self.model_name = "gpt-3.5-turbo-0125"
         self.default_system_prompt = """
