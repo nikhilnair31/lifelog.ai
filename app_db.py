@@ -25,7 +25,7 @@ class DatabaseManager:
         ''')
         c.execute('''
         CREATE TABLE IF NOT EXISTS audio
-        (timestamp TEXT, audio_path TEXT, transcript_text TEXT)
+        (timestamp TEXT, audio_path TEXT, transcript_text TEXT, description_text TEXT)
         ''')
         c.execute('''
         CREATE TABLE IF NOT EXISTS summary
@@ -56,12 +56,12 @@ class DatabaseManager:
         conn.close()
 
         print(f'Saved!\n')
-    def save_to_audio_db(self, timestamp, audio_path, transcript_text):
+    def save_to_audio_db(self, timestamp, audio_path, transcript_text, description_text):
         print(f'Saving to Audio DB...')
 
         conn = sqlite3.connect(self.db_path)
         c = conn.cursor()
-        c.execute("INSERT INTO audio VALUES (?, ?, ?)", (timestamp, audio_path, transcript_text))
+        c.execute("INSERT INTO audio VALUES (?, ?, ?, ?)", (timestamp, audio_path, transcript_text, description_text))
         conn.commit()
         conn.close()
 

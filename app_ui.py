@@ -195,12 +195,3 @@ class UIManager:
             if window_title == title:
                 frames[title] = self.create_settings_frame(new_window, title, elements)
                 frames[title].pack(side=tk.LEFT, expand=True, fill=tk.BOTH)
-        
-        # button_frame = ttk.Frame(main_frame)
-        # button_frame.pack(side=tk.BOTTOM, padx=5, pady=5, fill=tk.X)
-
-        # start_button = ttk.Button(button_frame, text="DONE", command=self.start_action)
-        # stop_button = ttk.Button(button_frame, text="CANCEL", command=self.stop_action)
-
-        # start_button.pack(side=tk.LEFT, padx=(0, 5), pady=5, fill=tk.X, expand=True)
-        # stop_button.pack(side=tk.LEFT, padx=(5, 0), pady=5, fill=tk.X, expand=True)

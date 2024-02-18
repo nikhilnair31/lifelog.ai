@@ -65,7 +65,6 @@ class AudioManager:
 
             # Pass through transcribe API
             transcript_text = self.modelManager.send_audio_to_api(audio_path, self.audio_audio_model)
-            # print(f"transcript_text: {transcript_text}")
             
             # Pass transcript through LLM
             payload = {
@@ -83,11 +82,10 @@ class AudioManager:
                 "max_tokens": 300,
                 "temperature": 0.1
             }
-            cleaned_transcript_text = self.modelManager.send_text_to_together_api("together", payload)
-            # print(f"cleaned_transcript_text: {cleaned_transcript_text}")
+            description_text = self.modelManager.send_text_to_together_api("together", payload)
 
             # Save to SQL
-            self.databaseManager.save_to_audio_db(timestamp, audio_filename, cleaned_transcript_text)
+            self.databaseManager.save_to_audio_db(timestamp, audio_filename, transcript_text, description_text)
 
             if self.controlManager.stop_event.wait(0):
                 break
