@@ -6,15 +6,18 @@ from PIL import Image
 from mss import mss
 
 class PhotoManager:
-    def __init__(self, controlManager, modelManager, databaseManager, imageManager):
+    def __init__(self, configManager, controlManager, modelManager, databaseManager, mediaManager):
+        self.configManager = configManager
         self.controlManager = controlManager
         self.modelManager = modelManager
         self.databaseManager = databaseManager
-        self.imageManager = imageManager
+        self.mediaManager = mediaManager
+
+        self.photo_loop_time_in_min = self.configManager.get_config("photo_loop_time_in_min") * 60
+        self.photo_image_model = self.configManager.get_config("photo_image_model")
+        self.photo_compression_perc = self.configManager.get_config("photo_compression_perc")
 
         self.photos_folder_path = 'data/photos/'
-        self.default_interval = 20 * 60
-        self.default_downscale_perc = 25
         self.default_system_prompt = "What do you see?"
         self.cap = None
 
@@ -52,11 +55,11 @@ class PhotoManager:
             original_image_bytes = self.take_photo()
             
             # Pass through Vision LLM
-            original_image_bytes_base64_encoded = self.imageManager.encode_image(original_image_bytes)
-            description_text = self.modelManager.send_image_to_api(original_image_bytes_base64_encoded, self.default_system_prompt)
+            original_image_bytes_base64_encoded = self.mediaManager.encode_image(original_image_bytes)
+            description_text = self.modelManager.send_image_to_api(original_image_bytes_base64_encoded, self.photo_image_model, self.default_system_prompt)
             
             # Save the original image to the specified path
-            downscaled_image_bytes = self.imageManager.downscale_image(original_image_bytes, quality=self.default_downscale_perc)
+            downscaled_image_bytes = self.mediaManager.downscale_image(original_image_bytes, quality=self.photo_compression_perc)
             image_filename = f"{filename}.jpeg"
             image_path = os.path.join(self.photos_folder_path, image_filename)
             with open(image_path, 'wb') as f:
@@ -65,5 +68,5 @@ class PhotoManager:
             # Save to SQL
             self.databaseManager.save_to_photo_db(timestamp, image_filename, description_text)
 
-            if self.controlManager.stop_event.wait(self.default_interval):
+            if self.controlManager.stop_event.wait(self.photo_loop_time_in_min):
                 break

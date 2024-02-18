@@ -9,15 +9,18 @@ from mss import mss
 pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
 
 class ScreenshotManager:
-    def __init__(self, controlManager, modelManager, databaseManager, imageManager):
+    def __init__(self, configManager, controlManager, modelManager, databaseManager, mediaManager):
+        self.configManager = configManager
         self.controlManager = controlManager
         self.modelManager = modelManager
         self.databaseManager = databaseManager
-        self.imageManager = imageManager
+        self.mediaManager = mediaManager
+
+        self.screenshot_loop_time_in_min = self.configManager.get_config("screenshot_loop_time_in_min") * 60
+        self.screenshot_text_model = self.configManager.get_config("screenshot_text_model")
+        self.screenshot_compression_perc = self.configManager.get_config("screenshot_compression_perc")
 
         self.screenshots_folder_path = 'data/screenshots/'
-        self.default_interval = 2 * 60
-        self.default_downscale_perc = 25
         self.default_system_prompt = "What do you see? Be precise. You have the OCR text contents of my Windows desktop screenshots. Tell what you see on the screen and text you see in details. It can be a youtube video, rick and morty series, terminal, twitter, vs code, and many others. answer with cool details. If you can't see make best guess."
 
     def take_screenshot(self):
@@ -60,7 +63,7 @@ class ScreenshotManager:
             original_image_bytes = self.take_screenshot()
             
             # Pass through OCR
-            negated_image_bytes = self.imageManager.negate_image(original_image_bytes)
+            negated_image_bytes = self.mediaManager.negate_image(original_image_bytes)
             ocr_text = self.extract_text_from_image_tesseract(negated_image_bytes)
             
             # Pass OCR through LLM
@@ -79,10 +82,10 @@ class ScreenshotManager:
                 "max_tokens": 300,
                 "temperature": 0.1
             }
-            description_text = self.modelManager.call_together_api("together", payload)
+            description_text = self.modelManager.send_text_to_together_api("together", payload)
             
             # Save compressed image
-            downscaled_image_bytes = self.imageManager.downscale_image(original_image_bytes, quality=self.default_downscale_perc)
+            downscaled_image_bytes = self.mediaManager.downscale_image(original_image_bytes, quality=self.screenshot_compression_perc)
             image_filename = f"{filename}.jpeg"
             image_path = os.path.join(self.screenshots_folder_path, image_filename)
             with open(image_path, 'wb') as f:
@@ -91,5 +94,5 @@ class ScreenshotManager:
             # Save to SQL
             self.databaseManager.save_to_screenshot_db(timestamp, image_filename, ocr_text, description_text)
 
-            if self.controlManager.stop_event.wait(self.default_interval):
+            if self.controlManager.stop_event.wait(self.screenshot_loop_time_in_min):
                 break

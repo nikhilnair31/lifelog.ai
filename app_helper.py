@@ -30,23 +30,21 @@ class ModelManager:
     def __init__(self, configManager):
         self.configManager = configManager
 
+        self.openai_api_key = self.configManager.get_config("openai_api_key")
         self.together_api_key = self.configManager.get_config("together_api_key")
         self.deepgram_api_key = self.configManager.get_config("deepgram_api_key")
-        self.default_text_model = self.configManager.get_config("default_text_model")
-        self.default_image_model = self.configManager.get_config("default_image_model")
-        self.default_audio_model = self.configManager.get_config("default_audio_model")
 
-    def send_image_to_api(self, image_bytes, system_prompt):
+    def send_image_to_api(self, image_bytes, image_model_name, system_prompt):
         """Determine which API to call based on the model selection and send the screenshot."""
 
         print(f'Sending Images to API...')
         
-        if self.default_image_model == "GPT":
+        if image_model_name == "gpt-4-turbo-preview":
             response = self.call_gpt4v_api(image_bytes, system_prompt)
-        elif self.default_image_model == "Moondream":
+        elif image_model_name == "moondream":
             response = self.call_moondream_api(image_bytes, system_prompt)
         else:
-            print(f"Invalid model selection: {self.default_image_model}")
+            print(f"Invalid model selection: {image_model_name}")
             return None
         
         return response
@@ -122,25 +120,7 @@ class ModelManager:
             # Optionally delete the temp file if not needed anymore
             os.unlink(tmpfile_path)
 
-    def send_text_to_api(self, text_list):
-        """Determine which API to call based on the model selection and send the screenshot."""
-
-        print(f'Sending Text to API...')
-        
-        if default_text_model == "GPT-3.5-Turbo":
-            response = call_together_api('gpt-3.5-turbo', "gpt", text_list)
-        elif default_text_model == "GPT-4-Turbo":
-            response = call_together_api('gpt-4-turbo-preview', "gpt", text_list)
-        elif default_text_model == "Mixtral-8x7B-Instruct-v0.1":
-            response = call_together_api('mistralai/Mixtral-8x7B-Instruct-v0.1', "together", text_list)
-        elif default_text_model == "OpenHermes-Mistral-7B":
-            response = call_together_api('teknium/OpenHermes-2p5-Mistral-7B', "together", text_list)
-        else:
-            print(f"Invalid model selection: {default_text_model}")
-            return None
-        
-        return response
-    def call_together_api(self, source, payload):
+    def send_text_to_together_api(self, source, payload):
         """Send the contents to the API and return the response."""
 
         print(f'Calling Together API...')
@@ -167,17 +147,17 @@ class ModelManager:
         
         return response.json()['choices'][0]['message']['content']
 
-    def send_audio_to_api(self, audio_path):
+    def send_audio_to_api(self, audio_path, audio_model):
         """Determine which API to call based on the model selection and send the screenshot."""
 
         print(f'Sending Audio to API...')
         
-        if self.default_audio_model == "Deepgram":
+        if audio_model == "deepgram":
             response = self.call_deepgram_api(audio_path)
-        elif self.default_audio_model == "Whisper":
+        elif audio_model == "whisper":
             response = self.call_whisper_api(audio_path)
         else:
-            print(f"Invalid model selection: {self.default_audio_model}")
+            print(f"Invalid model selection: {audio_model}")
             return None
         
         return response
@@ -215,8 +195,8 @@ class ModelManager:
         return response["text"]
 # endregion
 
-# region ImageManager
-class ImageManager:
+# region MediaManager
+class MediaManager:
     def __init__(self):
         pass
 

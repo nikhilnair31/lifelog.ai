@@ -3,15 +3,16 @@ import time
 import sqlite3
 
 class AgentManager:
-    def __init__(self, controlManager, modelManager, databaseManager, imageManager):
+    def __init__(self, configManager, controlManager, modelManager, databaseManager, mediaManager):
+        self.configManager = configManager
         self.controlManager = controlManager
         self.modelManager = modelManager
         self.databaseManager = databaseManager
-        self.imageManager = imageManager
+        self.mediaManager = mediaManager
 
-        self.default_interval = 5 * 60
+        self.agent_livesummary_loop_time_in_min = self.configManager.get_config("agent_livesummary_loop_time_in_min") * 60
+        self.agent_livesummary_text_model = self.configManager.get_config("agent_livesummary_text_model")
 
-        self.model_name = "gpt-3.5-turbo-0125"
         self.default_system_prompt = """
             You are the user's helper who is inside their desktop.
             You are provided the following:
@@ -37,7 +38,7 @@ class AgentManager:
         
         # Take all text and summarize
         payload = {
-            "model": self.model_name,
+            "model": self.agent_livesummary_text_model,
             "messages": [
                 {
                     "role": "system",
@@ -51,7 +52,7 @@ class AgentManager:
             "max_tokens": 256,
             "temperature": 0.1
         }
-        summarize_text = self.modelManager.call_together_api("gpt", payload)
+        summarize_text = self.modelManager.send_text_to_together_api("gpt", payload)
 
         # Save to SQL
         self.databaseManager.save_to_summary_db(timestamp, to_timestamp, timestamp, str(payload), summarize_text)
@@ -64,5 +65,5 @@ class AgentManager:
             
             self.agent_live_summarizer()
             
-            if self.controlManager.stop_event.wait(self.default_interval):
+            if self.controlManager.stop_event.wait(self.agent_livesummary_loop_time_in_min):
                 break

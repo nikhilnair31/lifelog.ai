@@ -2,7 +2,7 @@ import tkinter as tk
 from tkinter import ttk
 from threading import Thread
 
-from app_helper import ControlManager, ModelManager, ImageManager
+from app_helper import ControlManager, ModelManager, MediaManager
 from app_config import ConfigurationManager
 from app_db import DatabaseManager
 from app_screenshot import ScreenshotManager
@@ -24,7 +24,6 @@ def start_primary_process():
     audio_thread.start()
     agent_thread = Thread(target=agentManager.agent_loop)
     agent_thread.start()
-
 def stop_primary_process():
     print(f'Stopped!\n')
     
@@ -40,26 +39,27 @@ if __name__ == "__main__":
     databaseManager.initialize_db()
 
     controlManager = ControlManager()
-    imageManager = ImageManager(
+    mediaManager = MediaManager(
 
     )
     modelManager = ModelManager(
         configManager
     )
     agentManager = AgentManager(
-        controlManager, modelManager, databaseManager, imageManager
+        configManager, controlManager, modelManager, databaseManager, mediaManager
     )
     screenshotManager = ScreenshotManager(
-        controlManager, modelManager, databaseManager, imageManager
+        configManager, controlManager, modelManager, databaseManager, mediaManager
     )
     photoManager = PhotoManager(
-        controlManager, modelManager, databaseManager, imageManager
+        configManager, controlManager, modelManager, databaseManager, mediaManager
     )
     audioManager = AudioManager(
-        controlManager, modelManager, databaseManager, imageManager
+        configManager, controlManager, modelManager, databaseManager, mediaManager
     )
 
     app = UIManager(
-        configManager, controlManager
+        configManager, controlManager,
+        start_primary_process, stop_primary_process
     )
     app.run()

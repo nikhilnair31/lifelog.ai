@@ -3,9 +3,12 @@ from tkinter import ttk
 import sv_ttk
 
 class UIManager:
-    def __init__(self, configManager, controlManager):
+    def __init__(self, configManager, controlManager, start_function, stop_function):
         self.configManager = configManager
         self.controlManager = controlManager
+        
+        self.start_function = start_function
+        self.stop_function = stop_function
 
         self.image_model_list = self.configManager.get_config("image_model_list")
         self.text_model_list = self.configManager.get_config("text_model_list") 
@@ -15,17 +18,15 @@ class UIManager:
         self.agent_elements = {
             "LIVE SUMMARY SETTINGS": [
                 {"type": "label", "text": "LOOP TIME IN MIN"},
-                {"type": "slider", "from": 0, "to": 60, "orient": tk.HORIZONTAL, "key": "agent_livesummary_loop_time_in_min"},
+                {"type": "slider", "from": 1, "to": 60, "orient": tk.HORIZONTAL, "key": "agent_livesummary_loop_time_in_min"},
                 {"type": "label", "text": "TEXT MODEL"},
                 {"type": "combobox", "values": self.text_model_list , "key": "agent_livesummary_text_model"},
-                {"type": "checkbutton", "text": "ENABLED", "key": "agent_livesummary_enabled"}
             ],
             "FEATURE #2 SETTINGS": [
                 {"type": "label", "text": "LOOP TIME IN MIN"},
-                {"type": "slider", "from": 0, "to": 60, "orient": tk.HORIZONTAL, "key": "agent_feature2_loop_time_in_min"},
+                {"type": "slider", "from": 1, "to": 60, "orient": tk.HORIZONTAL, "key": "agent_feature2_loop_time_in_min"},
                 {"type": "label", "text": "TEXT MODEL"},
                 {"type": "combobox", "values": self.text_model_list , "key": "agent_feature2_text_model"},
-                {"type": "checkbutton", "text": "ENABLED", "key": "agent_feature2_enabled"}
             ],
         }
         self.all_elements = {
@@ -39,31 +40,31 @@ class UIManager:
             ],
             "SCREENSHOT SETTINGS": [
                 {"type": "label", "text": "LOOP TIME IN MIN"},
-                {"type": "slider", "from": 0, "to": 60, "orient": tk.HORIZONTAL, "key": "screenshot_loop_time_in_min"},
+                {"type": "slider", "from": 1, "to": 60, "orient": tk.HORIZONTAL, "key": "screenshot_loop_time_in_min"},
                 {"type": "label", "text": "TEXT MODEL"},
                 {"type": "combobox", "values": self.text_model_list , "key": "screenshot_text_model"},
                 {"type": "label", "text": "COMPRESSION %"},
-                {"type": "slider", "from": 0, "to": 100, "orient": tk.HORIZONTAL, "key": "screenshot_compression_perc"},
+                {"type": "slider", "from": 20, "to": 75, "orient": tk.HORIZONTAL, "key": "screenshot_compression_perc"},
                 {"type": "checkbutton", "text": "ENABLED", "key": "screenshot_enabled"}
             ],
             "PHOTO SETTINGS": [
                 {"type": "label", "text": "LOOP TIME IN MIN"},
-                {"type": "slider", "from": 0, "to": 60, "orient": tk.HORIZONTAL, "key": "photo_loop_time_in_min"},
+                {"type": "slider", "from": 1, "to": 60, "orient": tk.HORIZONTAL, "key": "photo_loop_time_in_min"},
                 {"type": "label", "text": "VISION MODEL"},
                 {"type": "combobox", "values": self.text_model_list , "key": "photo_image_model"},
                 {"type": "label", "text": "MODEL IMAGE QUALITY"},
                 {"type": "combobox", "values": self.image_quality_list, "key": "photo_image_quality_val"},
                 {"type": "label", "text": "COMPRESSION %"},
-                {"type": "slider", "from": 0, "to": 100, "orient": tk.HORIZONTAL, "key": "photo_compression_perc"},
+                {"type": "slider", "from": 20, "to": 75, "orient": tk.HORIZONTAL, "key": "photo_compression_perc"},
                 {"type": "checkbutton", "text": "ENABLED", "key": "photo_enabled"}
             ],
             "AUDIO SETTINGS": [
                 {"type": "label", "text": "LOOP TIME IN MIN"},
-                {"type": "slider", "from": 0, "to": 60, "orient": tk.HORIZONTAL, "key": "audio_loop_time_in_min"},
+                {"type": "slider", "from": 1, "to": 60, "orient": tk.HORIZONTAL, "key": "audio_loop_time_in_min"},
                 {"type": "label", "text": "AUDIO MODEL"},
                 {"type": "combobox", "values": self.audio_model_list, "key": "audio_audio_model"},
                 {"type": "label", "text": "COMPRESSION %"},
-                {"type": "slider", "from": 0, "to": 100, "orient": tk.HORIZONTAL, "key": "audio_compression_perc"},
+                {"type": "slider", "from": 20, "to": 75, "orient": tk.HORIZONTAL, "key": "audio_compression_perc"},
                 {"type": "checkbutton", "text": "ENABLED", "key": "audio_enabled"}
             ],
             "AGENT SETTINGS": [
@@ -95,8 +96,8 @@ class UIManager:
         button_frame = ttk.Frame(self.root)
         button_frame.pack(side=tk.BOTTOM, padx=5, pady=5, fill=tk.X)
 
-        start_button = ttk.Button(button_frame, text="START", command=self.start_action)
-        stop_button = ttk.Button(button_frame, text="STOP", command=self.stop_action)
+        start_button = ttk.Button(button_frame, text="START", command=self.start_function)
+        stop_button = ttk.Button(button_frame, text="STOP", command=self.stop_function)
 
         start_button.pack(side=tk.LEFT, padx=(0, 5), pady=5, fill=tk.X, expand=True)
         stop_button.pack(side=tk.LEFT, padx=(5, 0), pady=5, fill=tk.X, expand=True)
@@ -155,15 +156,9 @@ class UIManager:
     def run(self):
         self.root.mainloop()
 
-    def start_action(self):
-        print("Start action triggered")
-    def stop_action(self):
-        print("Stop action triggered")
-    
     def on_closing(self):
         print("Closing application...")
         if self.controlManager.is_running():
-            # FIXME: See how to trigger this in app.py from here
             stop_primary_process()
         self.root.destroy()
 
@@ -190,7 +185,7 @@ class UIManager:
     def open_new_window(self, window_title):
         new_window = tk.Toplevel(self.root)
         new_window.title(window_title)
-        new_window.geometry("400x250")
+        # new_window.geometry("400x150")
 
         main_frame = ttk.Frame(new_window, padding=(10, 10, 10, 10))
         main_frame.pack(expand=True, fill=tk.BOTH)
@@ -201,11 +196,11 @@ class UIManager:
                 frames[title] = self.create_settings_frame(new_window, title, elements)
                 frames[title].pack(side=tk.LEFT, expand=True, fill=tk.BOTH)
         
-        button_frame = ttk.Frame(main_frame)
-        button_frame.pack(side=tk.BOTTOM, padx=5, pady=5, fill=tk.X)
+        # button_frame = ttk.Frame(main_frame)
+        # button_frame.pack(side=tk.BOTTOM, padx=5, pady=5, fill=tk.X)
 
-        start_button = ttk.Button(button_frame, text="DONE", command=self.start_action)
-        stop_button = ttk.Button(button_frame, text="CANCEL", command=self.stop_action)
+        # start_button = ttk.Button(button_frame, text="DONE", command=self.start_action)
+        # stop_button = ttk.Button(button_frame, text="CANCEL", command=self.stop_action)
 
-        start_button.pack(side=tk.LEFT, padx=(0, 5), pady=5, fill=tk.X, expand=True)
-        stop_button.pack(side=tk.LEFT, padx=(5, 0), pady=5, fill=tk.X, expand=True)
+        # start_button.pack(side=tk.LEFT, padx=(0, 5), pady=5, fill=tk.X, expand=True)
+        # stop_button.pack(side=tk.LEFT, padx=(5, 0), pady=5, fill=tk.X, expand=True)
