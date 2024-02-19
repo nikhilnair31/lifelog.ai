@@ -4,12 +4,13 @@ import json
 import time
 import base64
 import requests
+import tempfile
 import threading
 from PIL import Image
 from openai import OpenAI
+from gradio_client import Client
 from deepgram import DeepgramClient, PrerecordedOptions, FileSource
 
-# region ControlManager
 class ControlManager:
     def __init__(self):
         self._running = False
@@ -23,9 +24,7 @@ class ControlManager:
 
     def is_running(self):
         return self._running
-# endregion
 
-# region ModelManager
 class ModelManager:
     def __init__(self, configManager):
         self.configManager = configManager
@@ -34,21 +33,21 @@ class ModelManager:
         self.together_api_key = self.configManager.get_config("together_api_key")
         self.deepgram_api_key = self.configManager.get_config("deepgram_api_key")
 
-    def send_image_to_api(self, image_bytes, image_model_name, system_prompt):
+    def send_image_to_api(self, base64_encoded_image, image_model_name, system_prompt):
         """Determine which API to call based on the model selection and send the screenshot."""
 
         print(f'Sending Images to API...')
         
         if image_model_name == "gpt-4-turbo-preview":
-            response = self.call_gpt4v_api(image_bytes, system_prompt)
+            response = self.call_gpt4v_api(base64_encoded_image, system_prompt)
         elif image_model_name == "moondream":
-            response = self.call_moondream_api(image_bytes, system_prompt)
+            response = self.call_moondream_api(base64_encoded_image, system_prompt)
         else:
             print(f"Invalid model selection: {image_model_name}")
             return None
         
         return response
-    def call_gpt4v_api(self, image_bytes, system_prompt):
+    def call_gpt4v_api(self, base64_encoded_image, system_prompt):
         """Send the screenshot to the API and return the response."""
 
         print(f'Calling GPT4V API...')
@@ -73,7 +72,7 @@ class ModelManager:
                         {
                             "type": "image_url",
                             "image_url": {
-                                "url": f"data:image/jpeg;base64,{image_bytes}",
+                                "url": f"data:image/jpeg;base64,{base64_encoded_image}",
                                 "detail": "low"
                             }
                         }
@@ -91,9 +90,11 @@ class ModelManager:
         print(f'Received response in {elapsed_time:.2f} seconds.')
         
         return response.json()['choices'][0]['message']['content']
-    def call_moondream_api(self, image_bytes, system_prompt):
+    def call_moondream_api(self, base64_encoded_image, system_prompt):
         print(f'Calling Moondream API...')
 
+        # Decode the base64 string to bytes
+        image_bytes = base64.b64decode(base64_encoded_image)
         # Load the image from bytes for a sanity check or manipulation if needed
         img = Image.open(io.BytesIO(image_bytes))
 
@@ -103,7 +104,7 @@ class ModelManager:
             tmpfile_path = tmpfile.name
 
         # Initialize the Gradio client with your Moondream API URL
-        client = Client("https://vikhyatk-moondream1.hf.space/--replicas/1hkz3/")
+        client = Client("https://niknair31-moondream1.hf.space/--replicas/frktd/")
 
         # Make the prediction (API call)
         try:
@@ -141,7 +142,7 @@ class ModelManager:
         }
         
         response = requests.post(url, headers=headers, json=payload)
-        print(response.json())
+        # print(response.json())
         
         elapsed_time = time.time() - start_time  # Calculate elapsed time
         print(f'Received response in {elapsed_time:.2f} seconds.')  # Print the elapsed time to two decimal places
@@ -194,9 +195,7 @@ class ModelManager:
         )
 
         return response["text"]
-# endregion
 
-# region MediaManager
 class MediaManager:
     def __init__(self):
         pass
@@ -235,4 +234,3 @@ class MediaManager:
         except Exception as e:
             print("Encode Image Error:", e)
             return None
-# endregion

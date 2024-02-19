@@ -54,12 +54,13 @@ class AgentManager:
             "max_tokens": 256,
             "temperature": 0.1
         }
-        print(f"payload: {payload}")
+        # print(f"payload: {payload}")
         summarize_text = self.modelManager.send_text_to_together_api(payload)
 
         # Save to SQL
         self.databaseManager.save_to_summary_db(timestamp, to_timestamp, timestamp, str(payload), summarize_text)
         
+    # TODO: Add another function to use the live summaries and send out a final summary at the start/end of the day
     def agent_loop(self):
         print(f'Agent Loop\n')
 

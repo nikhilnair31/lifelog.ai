@@ -51,7 +51,7 @@ class UIManager:
                 {"type": "label", "text": "LOOP TIME IN MIN"},
                 {"type": "slider", "from": 1, "to": 60, "orient": tk.HORIZONTAL, "key": "photo_loop_time_in_min"},
                 {"type": "label", "text": "VISION MODEL"},
-                {"type": "combobox", "values": self.text_model_list , "key": "photo_image_model"},
+                {"type": "combobox", "values": self.image_model_list , "key": "photo_image_model"},
                 {"type": "label", "text": "MODEL IMAGE QUALITY"},
                 {"type": "combobox", "values": self.image_quality_list, "key": "photo_image_quality_val"},
                 {"type": "label", "text": "COMPRESSION %"},

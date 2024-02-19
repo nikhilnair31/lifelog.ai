@@ -54,6 +54,7 @@ class ScreenshotManager:
         if not os.path.exists(self.screenshots_folder_path):
             os.makedirs(self.screenshots_folder_path)
 
+        # TODO: Update this loop to use OCR in conjunction with moondream API
         while self.controlManager.is_running():        
             print(f'Running Screenshot Loop')
 

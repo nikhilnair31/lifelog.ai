@@ -140,9 +140,9 @@ class DatabaseManager:
         screenshots_description_text_rows = [row[0] for row in screenshots_description_text_rows if row[0] is not None and row[0] != "-"]
         photos_description_text_rows = [row[0] for row in photos_description_text_rows if row[0] is not None and row[0] != "-"]
         audio_transcript_text_rows = [row[0] for row in audio_transcript_text_rows if row[0] is not None and row[0] != "-"]
-        print(f"screenshots_description_text_rows: {len(screenshots_description_text_rows)}")
-        print(f"photos_description_text_rows: {len(photos_description_text_rows)}")
-        print(f"audio_transcript_text_rows: {len(audio_transcript_text_rows)}")
+        # print(f"screenshots_description_text_rows: {len(screenshots_description_text_rows)}")
+        # print(f"photos_description_text_rows: {len(photos_description_text_rows)}")
+        # print(f"audio_transcript_text_rows: {len(audio_transcript_text_rows)}")
 
         return to_timestamp, screenshots_description_text_rows, photos_description_text_rows, audio_transcript_text_rows
     def retrieve_last_summary_for_livesummary(self):
