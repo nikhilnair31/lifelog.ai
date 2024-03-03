@@ -1,6 +1,9 @@
 import os
 import time
 import sqlite3
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 
 class AgentManager:
     def __init__(self, configManager, controlManager, modelManager, databaseManager, mediaManager):
@@ -60,7 +63,56 @@ class AgentManager:
         # Save to SQL
         self.databaseManager.save_to_summary_db(timestamp, to_timestamp, timestamp, str(payload), summarize_text)
         
-    # TODO: Add another function to use the live summaries and send out a final summary at the start/end of the day
+    def agent_day_summary_ping(self):
+        print(f'Day Summary Ping\n')
+
+        last_summary = self.databaseManager.retrieve_last_summary_for_livesummary()
+        self.send_html_email(
+            subject = "Current Usage Summary",
+            recipient_email = "niknair31898@gmail.com",
+            message = last_summary
+        )
+
+        # TODO: When day is coming to an end send existing summary 
+
+    def send_html_email(self, subject, recipient_email, message):
+        # Sender email and password from .env
+        sender_email = os.getenv("EMAIL_ADDRESS")
+        password = os.getenv("EMAIL_PASSWORD")
+        
+        # Load the HTML template
+        with open(".\sample\email_template.html", "r") as file:
+            html_template = file.read()
+        
+        # Replace the placeholder in the template with actual content
+        html_content = html_template.format(
+            message=message
+        )
+        
+        # Create message container
+        msg = MIMEMultipart('alternative')
+        msg['Subject'] = subject
+        msg['From'] = sender_email
+        msg['To'] = recipient_email
+        
+        # Record the MIME types
+        part = MIMEText(html_content, 'html')
+        
+        # Attach parts into message container
+        msg.attach(part)
+        
+        # Set up the SMTP server
+        try:
+            server = smtplib.SMTP_SSL('smtp.gmail.com', 465)
+            server.ehlo()
+            server.login(sender_email, password)
+            server.sendmail(sender_email, recipient_email, msg.as_string())
+            server.close()
+            
+            print("Email sent successfully!")
+        except Exception as e:
+            print(f"Failed to send email: {e}")
+
     def agent_loop(self):
         print(f'Agent Loop\n')
 
@@ -68,6 +120,7 @@ class AgentManager:
             print(f'Running Agent Loop')
             
             self.agent_live_summarizer()
+            self.agent_day_summary_ping()
             
             if self.controlManager.stop_event.wait(self.agent_livesummary_loop_time_in_min):
                 break

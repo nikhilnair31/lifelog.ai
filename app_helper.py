@@ -48,11 +48,8 @@ class ModelManager:
         
         return response
     def call_gpt4v_api(self, base64_encoded_image, system_prompt):
-        """Send the screenshot to the API and return the response."""
-
         print(f'Calling GPT4V API...')
         
-        # Capture start time
         start_time = time.time()
 
         headers = {
@@ -87,43 +84,49 @@ class ModelManager:
         
         # Time calculation
         elapsed_time = time.time() - start_time
-        print(f'Received response in {elapsed_time:.2f} seconds.')
+        print(f'Received GPT4V response in {elapsed_time:.2f} seconds.')
         
         return response.json()['choices'][0]['message']['content']
     def call_moondream_api(self, base64_encoded_image, system_prompt):
         print(f'Calling Moondream API...')
+        
+        start_time = time.time()
 
-        # Decode the base64 string to bytes
-        image_bytes = base64.b64decode(base64_encoded_image)
-        # Load the image from bytes for a sanity check or manipulation if needed
-        img = Image.open(io.BytesIO(image_bytes))
-
-        # Save the image temporarily
-        with tempfile.NamedTemporaryFile(delete=False, suffix='.jpeg') as tmpfile:
-            img.save(tmpfile, format="JPEG")
-            tmpfile_path = tmpfile.name
-
-        # Initialize the Gradio client with your Moondream API URL
-        client = Client("https://niknair31-moondream1.hf.space/--replicas/frktd/")
-
-        # Make the prediction (API call)
         try:
+            # Decode the base64 string to bytes
+            image_bytes = base64.b64decode(base64_encoded_image)
+            # Load the image from bytes for a sanity check or manipulation if needed
+            img = Image.open(io.BytesIO(image_bytes))
+
+            # Save the image temporarily
+            # FIXME: Fix this problem
+            with tempfile.NamedTemporaryFile(delete=False, suffix='.jpeg') as tmpfile:
+                img.save(tmpfile, format="JPEG")
+                tmpfile_path = tmpfile.name
+                img.close()
+
+            # Initialize the Gradio client with your Moondream API URL
+            client = Client("https://niknair31-moondream1.hf.space/--replicas/frktd/")
+
             result = client.predict(
                 tmpfile_path,
                 system_prompt,  
                 api_name="/answer_question"
             )
+        
+            elapsed_time = time.time() - start_time
+            print(f'Received Moondream response in {elapsed_time:.2f} seconds.')
+
             return result
         except Exception as e:
             print("An error occurred while calling Moondream API:", str(e))
             return ""
         finally:
-            # Optionally delete the temp file if not needed anymore
-            os.unlink(tmpfile_path)
+            # Delay the deletion to here, ensuring all references are released
+            if os.path.exists(tmpfile_path):
+                os.unlink(tmpfile_path)
 
     def send_text_to_together_api(self, payload):
-        """Send the contents to the API and return the response."""
-
         print(f'Calling Together API...')
         
         start_time = time.time()
@@ -144,8 +147,8 @@ class ModelManager:
         response = requests.post(url, headers=headers, json=payload)
         # print(response.json())
         
-        elapsed_time = time.time() - start_time  # Calculate elapsed time
-        print(f'Received response in {elapsed_time:.2f} seconds.')  # Print the elapsed time to two decimal places
+        elapsed_time = time.time() - start_time
+        print(f'Received Together response in {elapsed_time:.2f} seconds.')
         
         return response.json()['choices'][0]['message']['content']
 
@@ -164,6 +167,10 @@ class ModelManager:
         
         return response
     def call_deepgram_api(self, audio_path):
+        print(f'Calling Deepgram API...')
+
+        start_time = time.time()
+
         deepgram = DeepgramClient(self.deepgram_api_key)
         
         with open(audio_path, "rb") as file:
@@ -183,9 +190,15 @@ class ModelManager:
         )
 
         response = deepgram.listen.prerecorded.v("1").transcribe_file(payload, options)
+        
+        elapsed_time = time.time() - start_time
+        print(f'Received Deepgram response in {elapsed_time:.2f} seconds.')
 
         return response["results"]["channels"][0]["alternatives"][0]["transcript"]
     def call_whisper_api(self, audio_path):
+        print(f'Calling Whisper API...')
+
+        start_time = time.time()
         client = OpenAI(self.openai_api_key)
 
         audio_file= open(audio_path, "rb")
@@ -193,6 +206,9 @@ class ModelManager:
             model="whisper-1", 
             file=audio_file
         )
+        
+        elapsed_time = time.time() - start_time
+        print(f'Received Deepgram response in {elapsed_time:.2f} seconds.')
 
         return response["text"]
 

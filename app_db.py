@@ -149,14 +149,17 @@ class DatabaseManager:
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
 
-        # Check if the summary table is empty
         cursor.execute("SELECT content_text FROM summary ORDER BY timestamp DESC LIMIT 1")
-        last_summary_rows = cursor.fetchall()[0]
+        last_summary_rows = cursor.fetchall()
+        last_summary_rows = last_summary_rows[0]
 
         conn.commit()
         conn.close()
 
-        return [row[0] for row in last_summary_rows]
+        final_output = last_summary_rows[0]
+        print(f"final_output\n{final_output}")
+
+        return final_output
 
     def update_api_response(self, table_name, filepath, response, content):
         print(f'Updating {table_name}...')
