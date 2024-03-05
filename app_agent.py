@@ -68,7 +68,8 @@ class AgentManager:
 
         last_summary = self.databaseManager.retrieve_last_summary_for_livesummary()
         self.send_html_email(
-            subject = "Current Usage Summary",
+            subject = "LifeLog Summary",
+            # TODO: Make this an input field in UI
             recipient_email = "niknair31898@gmail.com",
             message = last_summary
         )
@@ -81,12 +82,17 @@ class AgentManager:
         password = os.getenv("EMAIL_PASSWORD")
         
         # Load the HTML template
-        with open(".\sample\email_template.html", "r") as file:
+        with open(".\email\email_template.html", "r") as file:
             html_template = file.read()
+
+        # Split the message by line breaks and wrap each paragraph in a <td> tag
+        paragraphs = message.split('\n')
+        print(f"len of paragraphs: {len(paragraphs)}")
+        formatted_message = ''.join(f'<tr><td style="padding: 8px 20px;">{p}</td></tr>' for p in paragraphs if p.strip())
         
         # Replace the placeholder in the template with actual content
         html_content = html_template.format(
-            message=message
+            message=formatted_message
         )
         
         # Create message container

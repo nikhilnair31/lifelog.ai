@@ -1,6 +1,6 @@
-# EYES: Environment for Your Screenshots
+# LifeLog
 
-This Python application, called EYES (Environment for Your Screenshots), is designed to capture screenshots at regular intervals, process them, and interact with various AI models for analysis. The application provides a user interface for configuration and control.
+This Python application, called LifeLog, is designed to capture screenshots at regular intervals, process them, and interact with various AI models for analysis. The application provides a user interface for configuration and control.
 
 ## Installation
 
@@ -14,16 +14,16 @@ pip install -r requirements.txt
 
 ## Usage
 
-Run the `main.py` script to start the application:
+Run the `app.py` script to start the application:
 
 ```bash
-python main.py
+python app.py
 ```
 
 or create executable with:
 
 ```bash
-pyinstaller --onefile --windowed main.py
+pyinstaller --onefile --windowed app.py
 ```
 
 Once the application starts, you'll see a graphical user interface (GUI) where you can configure the interval between screenshots, select the desired quality, choose the AI model for analysis, and start or stop the screenshot process.
