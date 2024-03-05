@@ -1,5 +1,6 @@
 import os
 import time
+import datetime
 import sqlite3
 import smtplib
 from email.mime.multipart import MIMEMultipart
@@ -16,6 +17,8 @@ class AgentManager:
         self.agent_livesummary_loop_time_in_min = self.configManager.get_config("agent_livesummary_loop_time_in_min") * 60
         self.agent_livesummary_text_model = self.configManager.get_config("agent_livesummary_text_model")
         self.send_to_email_id = self.configManager.get_config("send_to_email_id")
+        self.agent_livesummary_hour_to_send_summary = self.configManager.get_config("agent_livesummary_hour_to_send_summary")
+        self.agent_livesummary_sent_email_for_day = self.configManager.get_config("agent_livesummary_sent_email_for_day")
 
         self.default_system_prompt = """
             You are the user's helper who is inside their desktop.
@@ -66,15 +69,20 @@ class AgentManager:
         
     def agent_day_summary_ping(self):
         print(f'Day Summary Ping\n')
-
-        last_summary = self.databaseManager.retrieve_last_summary_for_livesummary()
-        self.send_html_email(
-            subject = "LifeLog Summary",
-            recipient_email = self.send_to_email_id,
-            message = last_summary
-        )
-
-        # TODO: When day is coming to an end send existing summary 
+        
+        # Get the current time
+        current_time = datetime.datetime.now()
+        
+        # Check if it's 9PM
+        if current_time.hour == self.agent_livesummary_hour_to_send_summary and not self.agent_livesummary_sent_email_for_day:
+            last_summary = self.databaseManager.retrieve_last_summary_for_livesummary()
+            self.send_html_email(
+                subject="LifeLog Summary",
+                recipient_email=self.send_to_email_id,
+                message=last_summary
+            )
+            self.agent_livesummary_sent_email_for_day = True
+            print("Summary sent at 9PM.")
 
     def send_html_email(self, subject, recipient_email, message):
         # Sender email and password from .env

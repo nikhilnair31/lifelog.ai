@@ -23,6 +23,8 @@ class UIManager:
                 {"type": "combobox", "values": self.text_model_list , "key": "agent_livesummary_text_model"},
                 {"type": "label", "text": "SEND TO EMAIL ID"},
                 {"type": "entry", "key": "send_to_email_id"},
+                {"type": "label", "text": "24H TO SEND SUMMARY"},
+                {"type": "slider", "from": 0, "to": 24, "orient": tk.HORIZONTAL, "key": "agent_livesummary_hour_to_send_summary"},
             ],
             "FEATURE #2 SETTINGS": [
                 {"type": "label", "text": "LOOP TIME IN MIN"},
