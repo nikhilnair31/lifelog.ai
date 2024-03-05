@@ -126,26 +126,42 @@ class ModelManager:
             if os.path.exists(tmpfile_path):
                 os.unlink(tmpfile_path)
 
-    def send_text_to_together_api(self, payload):
-        print(f'Calling Together API...')
+    def send_text_to_llm_api(self, payload):
+        print(f'Calling LLM API...')
         
         start_time = time.time()
         
         model_name = payload["model"]
-        if "gpt" in model_name:
-            url = "https://api.openai.com/v1/chat/completions"
-            api_key = self.openai_api_key
-        else:
-            url = "https://api.together.xyz/v1/chat/completions"
-            api_key = self.together_api_key
+        # print(f"model_name: {model_name}")
+        model_source = model_name.split('/')[0]
+        # print(f"model_source: {model_source}")
+        actual_model_name = model_name.replace(model_source+"/", "")
+        # print(f"actual_model_name: {actual_model_name}")
 
-        headers = {
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {api_key}"
-        }
-        
+        if "local" in model_source:
+            url = "http://localhost:1234/v1/chat/completions"
+            headers = {
+                "Content-Type": "application/json"
+            }
+        else:
+            if "gpt" in actual_model_name:
+                url = "https://api.openai.com/v1/chat/completions"
+                headers = {
+                    "Content-Type": "application/json",
+                    "Authorization": f"Bearer {self.openai_api_key}"
+                }
+            else:
+                url = "https://api.together.xyz/v1/chat/completions"
+                headers = {
+                    "Content-Type": "application/json",
+                    "Authorization": f"Bearer {self.together_api_key}"
+                }
+
+        payload["model"] = actual_model_name
+        # print(f"payload: {payload}")
+
         response = requests.post(url, headers=headers, json=payload)
-        # print(response.json())
+        # print(f"response.json()\n{response.json()}")
         
         elapsed_time = time.time() - start_time
         print(f'Received Together response in {elapsed_time:.2f} seconds.')

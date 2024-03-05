@@ -18,7 +18,7 @@ class PhotoManager:
         self.photo_compression_perc = self.configManager.get_config("photo_compression_perc")
 
         self.photos_folder_path = 'data/photos/'
-        # TODO: Compare prompts for moondream API
+        # FIXME: Compare prompts for moondream API
         self.default_system_prompt = "Describe the image in detail"
         self.cap = None
 

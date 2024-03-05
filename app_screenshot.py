@@ -69,7 +69,7 @@ class ScreenshotManager:
             
             # Pass OCR through LLM
             payload = {
-                "model": "openchat/openchat-3.5-1210",
+                "model": self.screenshot_text_model,
                 "messages": [
                     {
                         "role": "system",
@@ -83,7 +83,7 @@ class ScreenshotManager:
                 "max_tokens": 300,
                 "temperature": 0.1
             }
-            description_text = self.modelManager.send_text_to_together_api(payload)
+            description_text = self.modelManager.send_text_to_llm_api(payload)
             
             # Save compressed image
             downscaled_image_bytes = self.mediaManager.downscale_image(original_image_bytes, quality=self.screenshot_compression_perc)

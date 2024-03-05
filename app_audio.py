@@ -14,6 +14,7 @@ class AudioManager:
 
         self.audio_loop_time_in_min = self.configManager.get_config("audio_loop_time_in_min") * 60
         self.audio_audio_model = self.configManager.get_config("audio_audio_model")
+        self.audio_text_model = self.configManager.get_config("audio_text_model")
 
         self.audio_folder_path = 'data/audios/'
         self.audio_format = pyaudio.paInt16
@@ -68,7 +69,7 @@ class AudioManager:
             
             # Pass transcript through LLM
             payload = {
-                "model": "openchat/openchat-3.5-1210",
+                "model": self.audio_text_model,
                 "messages": [
                     {
                         "role": "system",
@@ -82,7 +83,7 @@ class AudioManager:
                 "max_tokens": 300,
                 "temperature": 0.1
             }
-            description_text = self.modelManager.send_text_to_together_api(payload)
+            description_text = self.modelManager.send_text_to_llm_api(payload)
 
             # Save to SQL
             self.databaseManager.save_to_audio_db(timestamp, audio_filename, transcript_text, description_text)

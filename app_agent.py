@@ -15,6 +15,7 @@ class AgentManager:
 
         self.agent_livesummary_loop_time_in_min = self.configManager.get_config("agent_livesummary_loop_time_in_min") * 60
         self.agent_livesummary_text_model = self.configManager.get_config("agent_livesummary_text_model")
+        self.send_to_email_id = self.configManager.get_config("send_to_email_id")
 
         self.default_system_prompt = """
             You are the user's helper who is inside their desktop.
@@ -58,7 +59,7 @@ class AgentManager:
             "temperature": 0.1
         }
         # print(f"payload: {payload}")
-        summarize_text = self.modelManager.send_text_to_together_api(payload)
+        summarize_text = self.modelManager.send_text_to_llm_api(payload)
 
         # Save to SQL
         self.databaseManager.save_to_summary_db(timestamp, to_timestamp, timestamp, str(payload), summarize_text)
@@ -69,8 +70,7 @@ class AgentManager:
         last_summary = self.databaseManager.retrieve_last_summary_for_livesummary()
         self.send_html_email(
             subject = "LifeLog Summary",
-            # TODO: Make this an input field in UI
-            recipient_email = "niknair31898@gmail.com",
+            recipient_email = self.send_to_email_id,
             message = last_summary
         )
 

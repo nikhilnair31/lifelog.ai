@@ -21,6 +21,8 @@ class UIManager:
                 {"type": "slider", "from": 1, "to": 60, "orient": tk.HORIZONTAL, "key": "agent_livesummary_loop_time_in_min"},
                 {"type": "label", "text": "TEXT MODEL"},
                 {"type": "combobox", "values": self.text_model_list , "key": "agent_livesummary_text_model"},
+                {"type": "label", "text": "SEND TO EMAIL ID"},
+                {"type": "entry", "key": "send_to_email_id"},
             ],
             "FEATURE #2 SETTINGS": [
                 {"type": "label", "text": "LOOP TIME IN MIN"},
@@ -63,6 +65,8 @@ class UIManager:
                 {"type": "slider", "from": 1, "to": 60, "orient": tk.HORIZONTAL, "key": "audio_loop_time_in_min"},
                 {"type": "label", "text": "AUDIO MODEL"},
                 {"type": "combobox", "values": self.audio_model_list, "key": "audio_audio_model"},
+                {"type": "label", "text": "TEXT MODEL"},
+                {"type": "combobox", "values": self.text_model_list , "key": "audio_text_model"},
                 {"type": "label", "text": "COMPRESSION %"},
                 {"type": "slider", "from": 20, "to": 75, "orient": tk.HORIZONTAL, "key": "audio_compression_perc"},
                 {"type": "checkbutton", "text": "ENABLED", "key": "audio_enabled"}
