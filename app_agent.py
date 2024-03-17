@@ -75,6 +75,7 @@ class AgentManager:
         
         # Check if it's 9PM
         if current_time.hour == self.agent_livesummary_hour_to_send_summary and not self.agent_livesummary_sent_email_for_day:
+            print(f'Current Hour: {current_time.hour}\n')
             last_summary = self.databaseManager.retrieve_last_summary_for_livesummary()
             self.send_html_email(
                 subject="LifeLog Summary",
@@ -82,7 +83,9 @@ class AgentManager:
                 message=last_summary
             )
             self.agent_livesummary_sent_email_for_day = True
-            print("Summary sent at 9PM.")
+            print("Summary sent!")
+        else:            
+            print(f'Not the time to send summary\n')
 
     def send_html_email(self, subject, recipient_email, message):
         # Sender email and password from .env
