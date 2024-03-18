@@ -82,7 +82,7 @@ class UIManager:
         }
         
         self.root = tk.Tk()
-        self.root.title("EYES")
+        self.root.title("lifelog.ai")
         self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
 
         self.main_frame = ttk.Frame(self.root, padding=(10, 10, 10, 10))

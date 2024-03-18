@@ -126,7 +126,7 @@ all_elements = {
 }
 
 root = tk.Tk()
-root.title("EYES")
+root.title("lifelog.ai")
 
 # Create main frame
 main_frame = ttk.Frame(root, padding=(10, 10, 10, 10))

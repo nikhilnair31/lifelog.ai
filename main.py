@@ -503,7 +503,7 @@ def create_ui():
     root = tk.Tk()
     root.config(bg=main_color_100)
     root.protocol("WM_DELETE_WINDOW", on_closing)
-    root.title("EYES")
+    root.title("lifelog.ai")
 
     # Calculate screen width and height
     screen_width = root.winfo_screenwidth()

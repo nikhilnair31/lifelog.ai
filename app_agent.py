@@ -22,7 +22,7 @@ class AgentManager:
 
         self.default_system_prompt = """
             You are the user's helper who is inside their desktop.
-            You are provided the following:
+            You are provided with some or all the following:
             - A running summary of the user's activity
             - Descriptions of their desktop's screenshot
             - Descriptions of their webcam's images 
@@ -44,7 +44,8 @@ class AgentManager:
         audio_transcript_text = '\n'.join(audio_transcript_text_rows[:len_filter])
 
         default_user_prompt = f"Running Summary:\n{last_summary}\nScreenshots Descriptions:\n{screenshots_description_text}\nPhotos Descriptions:\n{photos_description_text}\nAudio Transcripts:\n{audio_transcript_text}"
-        
+        print(f"default_user_prompt\n{default_user_prompt}\n")
+
         # Take all text and summarize
         payload = {
             "model": self.agent_livesummary_text_model,
@@ -78,7 +79,7 @@ class AgentManager:
             print(f'Current Hour: {current_time.hour}\n')
             last_summary = self.databaseManager.retrieve_last_summary_for_livesummary()
             self.send_html_email(
-                subject="LifeLog Summary",
+                subject="lifelog.ai Summary",
                 recipient_email=self.send_to_email_id,
                 message=last_summary
             )
